@@ -40,4 +40,6 @@ out/
 .env
 .env.local
 *.pem
+application-dev.yml
+application-prod.yml
 

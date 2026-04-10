@@ -16,5 +16,9 @@ public interface ContentMaterialRepository extends JpaRepository<ContentMaterial
 
     List<ContentMaterial> findByTeacherId(UUID teacherId);
 
+    Page<ContentMaterial> findByTeacherId(UUID teacherId, Pageable pageable);
+
+    Page<ContentMaterial> findByStatus(ContentStatus status, Pageable pageable);
+
     Page<ContentMaterial> findBySubjectAndGradeAndStatus(Subject subject, Short grade, ContentStatus status, Pageable pageable);
 }
