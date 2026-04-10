@@ -49,8 +49,8 @@ public class ContentMaterial extends BaseEntity {
     @Column(name = "grade", nullable = false)
     private Short grade;
 
-    @Column(name = "topic", length = 255)
-    private String topic;
+    @Column(name = "topic_id")
+    private UUID topicId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "content_type", nullable = false, length = 20)

@@ -525,125 +525,270 @@ RFC 7807 Problem Details formatı:
 
 ---
 
-## 7. Tətbiq Sırası (Step-by-Step)
+## 7. Mövcud Vəziyyət (Son Yenilənmə)
 
-### Addım 1 — Layihə Konfiqurasiyası
-- [x] `build.gradle`-ə dependencies əlavə et
-- [x] `application.yml` + `application-dev.yml` + `application-prod.yml` yarat
-- [x] Env variable-lar: `DB_URL`, `DB_USER`, `DB_PASS`, `JWT_SECRET`, `AWS_*`, `SMTP_*`
-- [x] `spring.jpa.hibernate.ddl-auto=update` (MVP — Hibernate cədvəlləri avtomatik yaradır)
-- [ ] PostgreSQL lokal setup + `CREATE DATABASE academate_dev`
-
-### Addım 2 — Domain Layer
-- [ ] `BaseEntity` (id UUID, createdAt, updatedAt, `@MappedSuperclass`)
-- [ ] Enum-lar: `Role`, `Subject`, `ContentType`, `ContentStatus`, `AiMessageRole`, `RelationType`, `AuditAction`
-- [ ] Entity-lər (14 ədəd) + `@Enumerated(EnumType.STRING)`
-- [ ] Repository-lər (`JpaRepository`)
-
-### Addım 3 — Security Core
-- [ ] `JwtProperties` (`@ConfigurationProperties("app.jwt")`)
-- [ ] `JwtService` — generate/parse/validate
-- [ ] `CustomUserDetails` + `CustomUserDetailsService`
-- [ ] `JwtAuthenticationFilter`
-- [ ] `JwtAuthenticationEntryPoint` + `AccessDeniedHandler`
-- [ ] `SecurityConfig` — FilterChain, PasswordEncoder, AuthenticationManager
-- [ ] `SecurityUtils.getCurrentUserId()`
-
-### Addım 4 — Exception Handling
-- [ ] `ApiException` hierarchy
-- [ ] `ApiError` DTO (RFC 7807)
-- [ ] `GlobalExceptionHandler` (`@RestControllerAdvice`)
-- [ ] Validation error formatter
-
-### Addım 5 — Auth Module
-- [ ] DTO-lar (request/response)
-- [ ] `RefreshTokenService` (generate, validate, rotate, revoke)
-- [ ] `EmailVerificationService`
-- [ ] `PasswordResetService`
-- [ ] `AuthService` (register, login, refresh, logout)
-- [ ] `AuthController`
-- [ ] Custom validator: `@StrongPassword`, `@ValidAzerbaijaniPhone`
-
-### Addım 6 — Audit & Rate Limiting
-- [ ] `AuditLog` entity + repository
-- [ ] `AuditLogService` (async)
-- [ ] Auth event listener
-- [ ] `RateLimitFilter` + Bucket4j konfiqurasiyası
-
-### Addım 7 — Email Infrastructure
-- [ ] `EmailService` (send verification, reset link)
-- [ ] HTML templates (Thymeleaf və ya plain)
-- [ ] Dev mühitdə MailHog və ya log-only mode
-
-### Addım 8 — S3 Integration (ilkin setup)
-- [ ] `S3Config` + `S3Properties`
-- [ ] `S3StorageService` (generate pre-signed URL, delete)
-- [ ] Content modulunda istifadə üçün hazır
-
-### Addım 9 — Test & Docs
-- [ ] Unit testlər: `JwtService`, `AuthService`
-- [ ] Integration testlər: auth flow (Testcontainers + PostgreSQL)
-- [ ] Swagger UI konfiqurasiyası (`/swagger-ui.html`)
-- [ ] `README.md` — setup, run, env variables
-- [ ] Postman collection export
+> **Növbəti addım: Addım 4 — Exception Handling**
 
 ---
 
-## 8. application.yml Nümunəsi (şablon)
+### ✅ Addım 1 — Layihə Konfiqurasiyası (TAMAMLANDI)
 
-```yaml
-spring:
-  application:
-    name: academate-backend
-  datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/academate_dev}
-    username: ${DB_USER:postgres}
-    password: ${DB_PASS:postgres}
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        jdbc.time_zone: UTC
-        format_sql: true
-    open-in-view: false
-  mail:
-    host: ${SMTP_HOST:localhost}
-    port: ${SMTP_PORT:1025}
-    username: ${SMTP_USER:}
-    password: ${SMTP_PASS:}
-  servlet:
-    multipart:
-      max-file-size: 50MB
-      max-request-size: 500MB
+Yaradılmış fayllar:
+- `build.gradle` — Spring Security, JJWT 0.12.6, Bucket4j 8.10.1, AWS S3 SDK v2, MapStruct 1.6.2, SpringDoc 2.6.0, Testcontainers
+- `src/main/resources/application.yml` — əsas konfiqurasiya
+- `src/main/resources/application-dev.yml` — dev profil (ddl-auto=update, SQL log açıq)
+- `src/main/resources/application-prod.yml` — prod profil
+- `.env.example` — env variable şablonu
+- `.gitignore` — `.env` əlavə edilib
 
-server:
-  port: 8080
-  error:
-    include-message: always
-    include-stacktrace: never
+Qeyd: `ddl-auto=update` hər iki profildə — Hibernate entity-lərdən avtomatik cədvəl yaradır.
 
-app:
-  jwt:
-    secret: ${JWT_SECRET}
-    access-token-expiration: PT15M
-    refresh-token-expiration: P7D
-    issuer: academate
-  cors:
-    allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:5173}
-  s3:
-    region: ${AWS_REGION:eu-central-1}
-    bucket: ${AWS_S3_BUCKET:academate-dev}
-    access-key: ${AWS_ACCESS_KEY}
-    secret-key: ${AWS_SECRET_KEY}
-  ai-service:
-    base-url: ${AI_SERVICE_URL:http://localhost:8000}
+---
 
-springdoc:
-  swagger-ui:
-    path: /swagger-ui.html
-  api-docs:
-    path: /v3/api-docs
+### ✅ Addım 2 — Domain Layer (TAMAMLANDI)
+
+**Paket strukturu:** layer-based (enums/, entity/, repository/, security/, ...)
+
+**`enums/` paketi** (7 enum):
+- `Role` — STUDENT, TEACHER, PARENT, ADMIN
+- `Subject` — RIYAZIYYAT, FIZIKA, KIMYA, BIOLOGIYA, INFORMATIKA, AZERBAYCAN_DILI, EDEBIYYAT, INGILIS_DILI, TARIX, COGRAFIYA
+- `ContentType` — VIDEO, PDF, PPTX, DOCUMENT, QUIZ
+- `ContentStatus` — DRAFT, PUBLISHED, ARCHIVED, FLAGGED
+- `AiMessageRole` — USER, ASSISTANT
+- `RelationType` — MOTHER, FATHER, GUARDIAN
+- `LinkCreatedVia` — PARENT_CREATED, INVITE_CODE
+- `AuditAction` — LOGIN_SUCCESS, LOGIN_FAILED, LOGOUT, LOGOUT_ALL, REGISTER, EMAIL_VERIFIED, PASSWORD_RESET_REQUESTED, PASSWORD_RESET_COMPLETED, PASSWORD_CHANGED, ACCOUNT_LOCKED, ACCOUNT_UNLOCKED, ROLE_CHANGED, USER_DEACTIVATED, TEACHER_VERIFIED, CONTENT_CREATED, CONTENT_DELETED, PARENT_LINKED, PARENT_LINK_VERIFIED
+
+**`entity/` paketi** (16 entity):
+- `BaseEntity` — @MappedSuperclass, UUID id (@UuidGenerator), createdAt, updatedAt (@EnableJpaAuditing)
+- `User` — əsas auth cədvəli, email nullable (uşaqlar üçün), username nullable, isLocked(), isEmailVerified()
+- `StudentProfile` — @MapsId → User, birthDate, getAge(), isChild() (age < 13)
+- `TeacherProfile` — @MapsId → User, isVerified, verifiedAt, verifiedBy
+- `ParentProfile` — @MapsId → User, occupation
+- `TeacherSubject` — composite PK (TeacherSubjectId: teacherId + subject)
+- `ParentStudentLink` — composite PK (ParentStudentLinkId: parentId + studentId), relation, verified, createdVia
+- `StudentInviteCode` — 6 rəqəmli code, expires 24h, isExpired(), isUsed()
+- `Topic` — subject (ENUM), grade, name, orderIndex. UNIQUE(subject, grade, name). Kurikuluma əsasən DataInitializer ilə doldurulur.
+- `ContentMaterial` — teacherId (FK), subject, grade, **topicId UUID → topics.id**, contentType, status, fileSizeBytes, viewCount
+- `AiSession` — userId, subject, tokensUsed
+- `AiMessage` — sessionId, role (ENUM), content, imageUrl, feedback (-1/0/1)
+- `StudentProgress` — UNIQUE(studentId, topicId), **topicId UUID → topics.id**, masteryScore (0.00-1.00)
+- `RefreshToken` — tokenHash (SHA-256), deviceInfo, ipAddress, revokedAt, isActive()
+- `EmailVerificationToken` — tokenHash, expires 24h, isUsable()
+- `PasswordResetToken` — tokenHash, expires 1h, isUsable()
+- `AuditLog` — userId nullable, action (ENUM), metadata (JSONB), createdAt (yalnız, updatedAt yoxdur)
+
+**`repository/` paketi** (16 repository):
+- `UserRepository` — findByEmail, findByUsername, findByEmailOrUsername, existsByEmail, existsByUsername
+- `StudentProfileRepository`
+- `TeacherProfileRepository`
+- `TeacherSubjectRepository` — findByIdTeacherId(UUID)
+- `ParentProfileRepository`
+- `ParentStudentLinkRepository` — findByIdParentId, findByIdStudentId, existsByIdParentIdAndIdStudentIdAndVerifiedTrue
+- `StudentInviteCodeRepository` — findByCode(String)
+- `ContentMaterialRepository` — findByTeacherId, findBySubjectAndGradeAndStatus (pageable)
+- `AiSessionRepository` — findByUserIdOrderByCreatedAtDesc
+- `AiMessageRepository` — findBySessionIdOrderByCreatedAtAsc
+- `TopicRepository` — findBySubjectAndGradeOrderByOrderIndex, findBySubjectOrderByGradeAscOrderIndexAsc
+- `StudentProgressRepository` — findByStudentId, findByStudentIdAndTopicId
+- `RefreshTokenRepository` — findByTokenHash, revokeAllByUserId (@Modifying JPQL)
+- `EmailVerificationTokenRepository` — findByTokenHash
+- `PasswordResetTokenRepository` — findByTokenHash
+- `AuditLogRepository` — findByUserId (pageable), findByAction (pageable)
+
+`AcademateBackendApplication.java`-ya `@EnableJpaAuditing` və `@EnableAsync` əlavə edilib.
+
+---
+
+### ✅ Addım 3 — Security Core (TAMAMLANDI)
+
+**`security/` paketi** (9 fayl):
+- `JwtProperties` — @ConfigurationProperties("app.jwt"): secret, accessTokenExpiration (PT15M), refreshTokenExpiration (P7D), issuer
+- `JwtService` — generateAccessToken(userId, email, role), extractAllClaims, extractUserId, extractRole, isTokenValid. HMAC-SHA256 (HS256). Claims: sub=userId, email, role, jti, iat, exp.
+- `CustomUserDetails` — implements UserDetails. getUserId() → UUID. isAccountNonLocked() → !user.isLocked(). getUsername() → email ?? username.
+- `CustomUserDetailsService` — loadUserByUsername(email/username) login üçün. loadUserById(UUID) JWT filter üçün.
+- `JwtAuthenticationFilter` — OncePerRequestFilter. Bearer token extract → isTokenValid → loadUserById → SecurityContext set.
+- `JwtAuthenticationEntryPoint` — 401 JSON: {status, title, detail, timestamp}
+- `CustomAccessDeniedHandler` — 403 JSON: {status, title, detail, timestamp}
+- `SecurityUtils` — getCurrentUserId() → Optional<UUID>, requireCurrentUserId() → UUID
+- `SecurityConfig` — CSRF disabled, CORS configured, STATELESS session, PUBLIC_URLS: /api/v1/auth/**, /api/v1/content/public/**, /swagger-ui/**, /v3/api-docs/**. BCryptPasswordEncoder(12). JwtAuthenticationFilter → UsernamePasswordAuthenticationFilter əvvəl.
+
+---
+
+### ⏳ Addım 4 — Exception Handling (NÖVBƏTİ)
+
+`common/exception/` paketində yaradılacaq:
+- `ApiException` — base runtime exception (status, title, detail)
+- `ResourceNotFoundException` extends ApiException — 404
+- `ConflictException` extends ApiException — 409 (email artıq mövcuddur)
+- `UnauthorizedException` extends ApiException — 401
+- `ForbiddenException` extends ApiException — 403
+- `BadRequestException` extends ApiException — 400
+- `ApiError` DTO — RFC 7807: {type, title, status, detail, traceId, timestamp, errors[]}
+- `GlobalExceptionHandler` @RestControllerAdvice:
+  - `ApiException` → custom status
+  - `MethodArgumentNotValidException` → 400 + field errors list
+  - `ConstraintViolationException` → 400
+  - `UsernameNotFoundException` → 404
+  - `AccessDeniedException` → 403
+  - `Exception` → 500 (detail gizlədilir)
+
+---
+
+### ⏳ Addım 5 — Auth Module
+
+`dto/` paketində request/response DTO-lar:
+
+**Request DTO-lar:**
+- `RegisterStudentRequest` — fullName, email (nullable, 13+), password (nullable, 13+), grade, schoolName, city, birthDate
+- `RegisterChildRequest` — valideyn tərəfindən uşaq yaradılması (fullName, grade, birthDate, schoolName, city) — email/şifrə olmur
+- `RegisterTeacherRequest` — fullName, email, password, subjects (List<Subject>)
+- `RegisterParentRequest` — fullName, email, password, phone
+- `LoginRequest` — identifier (email və ya username), password
+- `RefreshTokenRequest` — refreshToken
+- `ForgotPasswordRequest` — email
+- `ResetPasswordRequest` — token, newPassword
+- `ChangePasswordRequest` — currentPassword, newPassword
+- `VerifyEmailRequest` — token
+
+**Response DTO-lar:**
+- `AuthResponse` — accessToken, refreshToken, expiresIn, user (UserResponse)
+- `UserResponse` — id, fullName, email, username, role, avatarUrl, emailVerified
+
+`service/` paketində:
+- `RefreshTokenService` — generate (plain token → SHA-256 hash → DB), validate, rotate (revoke old, create new), revokeAll
+- `EmailVerificationService` — generate token, verify token
+- `PasswordResetService` — generate token, reset password
+- `AuthService` — registerStudent, registerChild (valideyn tərəfindən), registerTeacher, registerParent, login (brute-force check, lock check), refresh, logout, logoutAll, verifyEmail, changePassword
+- Custom validators: `@StrongPassword` (min 8, böyük+kiçik+rəqəm), `@ValidAzPhone` (+994XXXXXXXXX)
+
+`controller/` paketində:
+- `AuthController` — bütün /api/v1/auth/** endpoint-ləri
+
+---
+
+### ⏳ Addım 6 — Audit & Rate Limiting
+
+`service/` paketində:
+- `AuditLogService` — @Async logAction(userId, action, entityType, entityId, request, metadata)
+- `AuditEventListener` — @EventListener, Spring Security auth event-lərini dinləyir
+
+`common/ratelimit/` paketində:
+- `RateLimitService` — Bucket4j ile IP/user bazlı bucket idarəsi
+- `RateLimitFilter` — OncePerRequestFilter, endpoint-ə görə limit tətbiq edir
+
+Limitlər (application.yml-dən oxunur):
+- login: 5/dəq/IP, register: 3/saat/IP, forgot-password: 3/saat/IP
+- ai/ask: 30/saat/user, content/upload: 20/gün/user
+
+---
+
+### ⏳ Addım 7 — Email Service
+
+`service/` paketində:
+- `EmailService` — sendVerificationEmail(user, token), sendPasswordResetEmail(user, token), sendParentLinkNotification(student, parent)
+- Dev mühitdə: MailHog (localhost:1025 SMTP, localhost:8025 UI) — real email getmir
+- Prod-da: SMTP env variable ilə (Gmail, SendGrid, SES)
+- Template: sadə HTML String (Thymeleaf yüklü deyil, MVP üçün plain)
+
+---
+
+### ⏳ Addım 8 — S3 Integration
+
+`config/` paketində:
+- `S3Properties` — @ConfigurationProperties("app.s3"): region, bucket, accessKey, secretKey, presignedUrlExpiration
+- `S3Config` — S3Client bean, S3Presigner bean
+
+`service/` paketində:
+- `S3StorageService` — generatePresignedUploadUrl(key, contentType, expiresIn), generatePresignedDownloadUrl(key), deleteObject(key), buildKey(env, contentType, teacherId, filename)
+- File key format: `{prod|dev}/{VIDEO|PDF|...}/{teacherId}/{uuid}-{sanitizedName}`
+- Whitelist: pdf, mp4, pptx, docx, png, jpg, jpeg
+- Size limits: PDF 50MB, Video 500MB, Image 10MB
+
+---
+
+### ⏳ Addım 9 — Tests & Docs
+
+- Unit: `JwtServiceTest`, `AuthServiceTest` (Mockito)
+- Integration: `AuthControllerIntegrationTest` (Testcontainers PostgreSQL)
+- Swagger: `OpenApiConfig` — title, version, security scheme (Bearer JWT)
+- `README.md` — setup, env vars, run, API docs link
+
+---
+
+## 8. Paket Strukturu (Mövcud)
+
+```
+src/main/java/com/example/academatebackend/
+├── AcademateBackendApplication.java   (@EnableJpaAuditing, @EnableAsync)
+├── enums/
+│   ├── Role.java
+│   ├── Subject.java
+│   ├── ContentType.java
+│   ├── ContentStatus.java
+│   ├── AiMessageRole.java
+│   ├── RelationType.java
+│   ├── LinkCreatedVia.java
+│   └── AuditAction.java
+├── entity/
+│   ├── BaseEntity.java
+│   ├── User.java
+│   ├── StudentProfile.java
+│   ├── TeacherProfile.java
+│   ├── TeacherSubject.java            (composite PK)
+│   ├── ParentProfile.java
+│   ├── ParentStudentLink.java         (composite PK)
+│   ├── StudentInviteCode.java
+│   ├── ContentMaterial.java
+│   ├── AiSession.java
+│   ├── AiMessage.java
+│   ├── StudentProgress.java
+│   ├── RefreshToken.java
+│   ├── EmailVerificationToken.java
+│   ├── PasswordResetToken.java
+│   ├── AuditLog.java
+│   └── Topic.java
+├── repository/
+│   ├── UserRepository.java
+│   ├── StudentProfileRepository.java
+│   ├── TeacherProfileRepository.java
+│   ├── TeacherSubjectRepository.java
+│   ├── ParentProfileRepository.java
+│   ├── ParentStudentLinkRepository.java
+│   ├── StudentInviteCodeRepository.java
+│   ├── ContentMaterialRepository.java
+│   ├── AiSessionRepository.java
+│   ├── AiMessageRepository.java
+│   ├── StudentProgressRepository.java
+│   ├── RefreshTokenRepository.java
+│   ├── EmailVerificationTokenRepository.java
+│   ├── PasswordResetTokenRepository.java
+│   ├── AuditLogRepository.java
+│   └── TopicRepository.java
+└── security/
+    ├── JwtProperties.java
+    ├── JwtService.java
+    ├── CustomUserDetails.java
+    ├── CustomUserDetailsService.java
+    ├── JwtAuthenticationFilter.java
+    ├── JwtAuthenticationEntryPoint.java
+    ├── CustomAccessDeniedHandler.java
+    ├── SecurityUtils.java
+    └── SecurityConfig.java
+
+src/main/resources/
+├── application.yml
+├── application-dev.yml
+└── application-prod.yml
+```
+
+Hələ yaradılmamış paketlər (növbəti addımlarda):
+```
+├── common/exception/     ← Addım 4
+├── dto/                  ← Addım 5
+├── service/              ← Addım 5, 6, 7, 8
+├── controller/           ← Addım 5
+└── config/               ← Addım 8
 ```
 
 ---
@@ -677,6 +822,8 @@ springdoc:
 
 ---
 
-## 11. Növbəti Addım
+## 11. Yeni Chat Üçün Başlanğıc Konteksti
 
-Plan tam təsdiqlənib. **Addım 1** (Gradle dependencies + application.yml + env setup) ilə başlayırıq.
+Yeni chatdə aşağıdakı cümləni istifadə et:
+
+> "Academate backend layihəsindəyik. Spring Boot 3.5.13 + Java 17 + Gradle + PostgreSQL + JWT + S3. `docs/SECURITY_PLAN.md` faylını oxu — mövcud vəziyyəti, yaradılmış bütün faylları və növbəti addımı orada tapa bilərsən. Növbəti addım: **Addım 4 — Exception Handling** (`common/exception/` paketi)."

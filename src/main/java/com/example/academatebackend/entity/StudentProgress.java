@@ -1,10 +1,7 @@
 package com.example.academatebackend.entity;
 
-import com.example.academatebackend.enums.Subject;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
@@ -21,8 +18,8 @@ import java.util.UUID;
 @Table(
         name = "student_progress",
         uniqueConstraints = @UniqueConstraint(
-                name = "uk_progress_student_subject_topic",
-                columnNames = {"student_id", "subject", "topic"}
+                name = "uk_progress_student_topic",
+                columnNames = {"student_id", "topic_id"}
         )
 )
 @Getter
@@ -35,12 +32,8 @@ public class StudentProgress extends BaseEntity {
     @Column(name = "student_id", nullable = false)
     private UUID studentId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "subject", nullable = false, length = 30)
-    private Subject subject;
-
-    @Column(name = "topic", nullable = false, length = 255)
-    private String topic;
+    @Column(name = "topic_id", nullable = false)
+    private UUID topicId;
 
     @Column(name = "mastery_score", precision = 3, scale = 2)
     @Builder.Default
