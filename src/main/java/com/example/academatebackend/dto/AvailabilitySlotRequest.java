@@ -1,0 +1,14 @@
+package com.example.academatebackend.dto;
+
+import lombok.Getter;
+import lombok.Setter;
+import java.time.DayOfWeek;
+import java.time.LocalTime;
+
+@Getter
+@Setter
+public class AvailabilitySlotRequest {
+    private DayOfWeek dayOfWeek;
+    private LocalTime startTime;
+    private LocalTime endTime;
+}

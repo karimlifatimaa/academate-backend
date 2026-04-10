@@ -1,5 +1,6 @@
 package com.example.academatebackend.service;
 
+import com.example.academatebackend.entity.Lesson;
 import com.example.academatebackend.entity.User;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -74,6 +75,83 @@ public class EmailService {
                 <p>Təsdiqləmək üçün profilinizə daxil olun.</p>
                 """.formatted(student.getFullName(), parent.getFullName());
         send(student.getEmail(), "Academate — Valideyn Bağlantısı", html);
+    }
+
+    @Async
+    public void sendLessonConfirmationEmail(User recipient, User teacher, Lesson lesson, String meetLink) {
+        String dateStr = lesson.getScheduledAt()
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
+        String linkSection = meetLink != null
+                ? """
+                  <a href="%s" style="
+                      display:inline-block;padding:12px 24px;
+                      background:#00C4B4;color:#fff;
+                      border-radius:6px;text-decoration:none;font-weight:bold;">
+                    Google Meet-ə Qoşul
+                  </a>
+                  """.formatted(meetLink)
+                : "<p>Görüşmə linki tezliklə əlavə ediləcək.</p>";
+
+        String html = """
+                <h2 style="color:#3B3F8C;">Academate — Dərs Təsdiqləndi ✓</h2>
+                <p>Salam, <strong>%s</strong>!</p>
+                <p>Aşağıdakı dərsiniz təsdiqləndi:</p>
+                <table style="border-collapse:collapse;width:100%%;max-width:400px;">
+                  <tr><td style="padding:8px;color:#6B7280;">Müəllim</td><td style="padding:8px;font-weight:bold;">%s</td></tr>
+                  <tr><td style="padding:8px;color:#6B7280;">Fənn</td><td style="padding:8px;font-weight:bold;">%s</td></tr>
+                  <tr><td style="padding:8px;color:#6B7280;">Tarix/Saat</td><td style="padding:8px;font-weight:bold;">%s</td></tr>
+                  <tr><td style="padding:8px;color:#6B7280;">Müddət</td><td style="padding:8px;font-weight:bold;">%d dəqiqə</td></tr>
+                </table>
+                <br/>
+                %s
+                <p style="color:#6B7280;font-size:13px;margin-top:16px;">
+                  Dərsə qoşulmaq üçün yuxarıdakı düyməyə klikləyin. Uğurlar!
+                </p>
+                """.formatted(
+                recipient.getFullName(),
+                teacher.getFullName(),
+                lesson.getSubject(),
+                dateStr,
+                lesson.getDurationMinutes(),
+                linkSection);
+
+        send(recipient.getEmail(), "Academate — Dərs Təsdiqləndi: " + dateStr, html);
+    }
+
+    @Async
+    public void sendLessonReminderEmail(User recipient, User teacher, Lesson lesson) {
+        String dateStr = lesson.getScheduledAt()
+                .format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
+        String linkSection = lesson.getMeetingLink() != null
+                ? """
+                  <a href="%s" style="
+                      display:inline-block;padding:12px 24px;
+                      background:#3B3F8C;color:#fff;
+                      border-radius:6px;text-decoration:none;font-weight:bold;">
+                    Google Meet-ə Qoşul
+                  </a>
+                  """.formatted(lesson.getMeetingLink())
+                : "";
+
+        String html = """
+                <h2 style="color:#3B3F8C;">Academate — Dərsinizə 1 Saat Qaldı ⏰</h2>
+                <p>Salam, <strong>%s</strong>!</p>
+                <p>Dərsiniz <strong>1 saat</strong> sonra başlayır:</p>
+                <table style="border-collapse:collapse;width:100%%;max-width:400px;">
+                  <tr><td style="padding:8px;color:#6B7280;">Müəllim</td><td style="padding:8px;font-weight:bold;">%s</td></tr>
+                  <tr><td style="padding:8px;color:#6B7280;">Fənn</td><td style="padding:8px;font-weight:bold;">%s</td></tr>
+                  <tr><td style="padding:8px;color:#6B7280;">Saat</td><td style="padding:8px;font-weight:bold;">%s</td></tr>
+                </table>
+                <br/>
+                %s
+                """.formatted(
+                recipient.getFullName(),
+                teacher.getFullName(),
+                lesson.getSubject(),
+                dateStr,
+                linkSection);
+
+        send(recipient.getEmail(), "Academate — Dərsinizə 1 saat qaldı!", html);
     }
 
     private void send(String to, String subject, String htmlBody) {
