@@ -1,0 +1,108 @@
+spring:
+  application:
+    name: academate-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/academate_dev}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASS:postgres}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+          lob:
+            non_contextual_creation: true
+        format_sql: true
+    open-in-view: false
+    show-sql: false
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASS:}
+    properties:
+      mail:
+        smtp:
+          auth: ${SMTP_AUTH:false}
+          starttls:
+            enable: ${SMTP_STARTTLS:false}
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 500MB
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: always
+    include-stacktrace: never
+    include-binding-errors: always
+  forward-headers-strategy: framework
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:changeme-please-use-at-least-256-bit-secret-in-production-environment}
+    access-token-expiration: PT15M
+    refresh-token-expiration: P7D
+    issuer: academate
+  cors:
+    allowed-origins: ${CORS_ORIGINS:http://localhost:3000,http://localhost:5173}
+    allowed-methods: GET,POST,PUT,DELETE,PATCH,OPTIONS
+    allowed-headers: Authorization,Content-Type,X-Request-Id
+    allow-credentials: true
+    max-age: 3600
+  security:
+    password:
+      bcrypt-strength: 12
+    login:
+      max-failed-attempts: 5
+      lock-duration: PT15M
+    email-verification:
+      token-expiration: PT24H
+    password-reset:
+      token-expiration: PT1H
+    student-invite-code:
+      expiration: PT24H
+      length: 6
+  s3:
+    region: ${AWS_REGION:eu-central-1}
+    bucket: ${AWS_S3_BUCKET:academate-dev}
+    access-key: ${AWS_ACCESS_KEY:}
+    secret-key: ${AWS_SECRET_KEY:}
+    presigned-url-expiration: PT15M
+  ai-service:
+    base-url: ${AI_SERVICE_URL:http://localhost:8000}
+    timeout: PT30S
+  rate-limit:
+    login-per-minute: 5
+    register-per-hour: 3
+    forgot-password-per-hour: 3
+    ai-ask-per-hour: 30
+    content-upload-per-day: 20
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    root: INFO
+    com.example.academatebackend: DEBUG
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-}] %logger{36} - %msg%n"
