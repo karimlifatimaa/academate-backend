@@ -527,7 +527,7 @@ RFC 7807 Problem Details formatı:
 
 ## 7. Mövcud Vəziyyət (Son Yenilənmə)
 
-> **Növbəti addım: Addım 4 — Exception Handling**
+> **Növbəti addım: Addım 10 — Content, AI, Progress controller-ləri**
 
 ---
 
@@ -615,7 +615,7 @@ Qeyd: `ddl-auto=update` hər iki profildə — Hibernate entity-lərdən avtomat
 
 ---
 
-### ⏳ Addım 4 — Exception Handling (NÖVBƏTİ)
+### ✅ Addım 4 — Exception Handling (TAMAMLANDI)
 
 `common/exception/` paketində yaradılacaq:
 - `ApiException` — base runtime exception (status, title, detail)
@@ -635,7 +635,7 @@ Qeyd: `ddl-auto=update` hər iki profildə — Hibernate entity-lərdən avtomat
 
 ---
 
-### ⏳ Addım 5 — Auth Module
+### ✅ Addım 5 — Auth Module (TAMAMLANDI)
 
 `dto/` paketində request/response DTO-lar:
 
@@ -667,7 +667,7 @@ Qeyd: `ddl-auto=update` hər iki profildə — Hibernate entity-lərdən avtomat
 
 ---
 
-### ⏳ Addım 6 — Audit & Rate Limiting
+### ✅ Addım 6 — Audit & Rate Limiting (TAMAMLANDI)
 
 `service/` paketində:
 - `AuditLogService` — @Async logAction(userId, action, entityType, entityId, request, metadata)
@@ -683,7 +683,7 @@ Limitlər (application.yml-dən oxunur):
 
 ---
 
-### ⏳ Addım 7 — Email Service
+### ✅ Addım 7 — Email Service (TAMAMLANDI)
 
 `service/` paketində:
 - `EmailService` — sendVerificationEmail(user, token), sendPasswordResetEmail(user, token), sendParentLinkNotification(student, parent)
@@ -693,7 +693,7 @@ Limitlər (application.yml-dən oxunur):
 
 ---
 
-### ⏳ Addım 8 — S3 Integration
+### ✅ Addım 8 — S3 Integration (TAMAMLANDI)
 
 `config/` paketində:
 - `S3Properties` — @ConfigurationProperties("app.s3"): region, bucket, accessKey, secretKey, presignedUrlExpiration
@@ -707,7 +707,7 @@ Limitlər (application.yml-dən oxunur):
 
 ---
 
-### ⏳ Addım 9 — Tests & Docs
+### ✅ Addım 9 — Swagger Docs (TAMAMLANDI)
 
 - Unit: `JwtServiceTest`, `AuthServiceTest` (Mockito)
 - Integration: `AuthControllerIntegrationTest` (Testcontainers PostgreSQL)
@@ -765,30 +765,61 @@ src/main/java/com/example/academatebackend/
 │   ├── PasswordResetTokenRepository.java
 │   ├── AuditLogRepository.java
 │   └── TopicRepository.java
-└── security/
-    ├── JwtProperties.java
-    ├── JwtService.java
-    ├── CustomUserDetails.java
-    ├── CustomUserDetailsService.java
-    ├── JwtAuthenticationFilter.java
-    ├── JwtAuthenticationEntryPoint.java
-    ├── CustomAccessDeniedHandler.java
-    ├── SecurityUtils.java
-    └── SecurityConfig.java
+├── security/
+│   ├── JwtProperties.java
+│   ├── JwtService.java
+│   ├── CustomUserDetails.java
+│   ├── CustomUserDetailsService.java
+│   ├── JwtAuthenticationFilter.java
+│   ├── JwtAuthenticationEntryPoint.java
+│   ├── CustomAccessDeniedHandler.java
+│   ├── SecurityUtils.java
+│   ├── RateLimitFilter.java
+│   └── SecurityConfig.java
+├── common/
+│   ├── exception/
+│   │   ├── ApiException.java
+│   │   ├── ResourceNotFoundException.java
+│   │   ├── ConflictException.java
+│   │   ├── BadRequestException.java
+│   │   ├── UnauthorizedException.java
+│   │   ├── ForbiddenException.java
+│   │   ├── ApiError.java
+│   │   └── GlobalExceptionHandler.java
+│   └── validation/
+│       ├── StrongPassword.java
+│       └── StrongPasswordValidator.java
+├── dto/
+│   ├── RegisterStudentRequest.java
+│   ├── RegisterChildRequest.java
+│   ├── RegisterTeacherRequest.java
+│   ├── RegisterParentRequest.java
+│   ├── LoginRequest.java
+│   ├── RefreshTokenRequest.java
+│   ├── ForgotPasswordRequest.java
+│   ├── ResetPasswordRequest.java
+│   ├── ChangePasswordRequest.java
+│   ├── AuthResponse.java
+│   └── UserResponse.java
+├── service/
+│   ├── AuthService.java
+│   ├── RefreshTokenService.java
+│   ├── EmailVerificationService.java
+│   ├── PasswordResetService.java
+│   ├── EmailService.java              (HTML MimeMessage, @Async)
+│   ├── AuditLogService.java           (@Async)
+│   └── S3StorageService.java          (pre-signed PUT URLs)
+├── controller/
+│   └── AuthController.java
+└── config/
+    ├── S3Config.java                  (S3Client + S3Presigner beans)
+    ├── S3Properties.java              (@ConfigurationProperties "app.s3")
+    └── OpenApiConfig.java             (Swagger UI + Bearer JWT scheme)
 
 src/main/resources/
 ├── application.yml
 ├── application-dev.yml
 └── application-prod.yml
-```
-
-Hələ yaradılmamış paketlər (növbəti addımlarda):
-```
-├── common/exception/     ← Addım 4
-├── dto/                  ← Addım 5
-├── service/              ← Addım 5, 6, 7, 8
-├── controller/           ← Addım 5
-└── config/               ← Addım 8
 ```
 
 ---
@@ -826,4 +857,4 @@ Hələ yaradılmamış paketlər (növbəti addımlarda):
 
 Yeni chatdə aşağıdakı cümləni istifadə et:
 
-> "Academate backend layihəsindəyik. Spring Boot 3.5.13 + Java 17 + Gradle + PostgreSQL + JWT + S3. `docs/SECURITY_PLAN.md` faylını oxu — mövcud vəziyyəti, yaradılmış bütün faylları və növbəti addımı orada tapa bilərsən. Növbəti addım: **Addım 4 — Exception Handling** (`common/exception/` paketi)."
+> "Academate backend layihəsindəyik. Spring Boot 3.5.13 + Java 17 + Gradle + PostgreSQL + JWT + S3. `docs/SECURITY_PLAN.md` faylını oxu — mövcud vəziyyəti, yaradılmış bütün faylları və növbəti addımı orada tapa bilərsən. Növbəti addım: **Addım 10 — Content, AI, Progress controller-ləri** (ContentController, AiController, ProgressController + onların service-ləri)."

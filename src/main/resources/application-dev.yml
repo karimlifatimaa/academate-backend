@@ -1,4 +1,8 @@
 spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/academate_dev
+    username: postgres
+    password: postgres
   jpa:
     hibernate:
       ddl-auto: update
@@ -6,6 +10,25 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: kerimlifatime417@gmail.com
+    password: dkyiswspxzfqghnx
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+app:
+  s3:
+    region: fra1
+    bucket: profile-image
+    access-key: DO00RCU24W7QDDJ77V74
+    secret-key: MFNb1slRvHA+sG53X4qz6buzzybHslNzlvKdXO67cpE
+    endpoint: https://fra1.digitaloceanspaces.com
 
 logging:
   level:
