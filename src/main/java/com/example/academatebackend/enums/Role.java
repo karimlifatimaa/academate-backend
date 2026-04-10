@@ -1,4 +1,4 @@
-package com.example.academatebackend.user.entity;
+package com.example.academatebackend.enums;
 
 public enum Role {
     STUDENT,
