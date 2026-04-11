@@ -83,8 +83,12 @@ public class LessonService {
         lessonRepository.save(lesson);
 
         // Send confirmation emails
-        emailService.sendLessonConfirmationEmail(student, teacher, lesson, meetLink);
-        emailService.sendLessonConfirmationEmail(teacher, teacher, lesson, meetLink);
+        if (student.getEmail() != null) {
+            emailService.sendLessonConfirmationEmail(student, teacher, lesson, meetLink);
+        }
+        if (teacher.getEmail() != null) {
+            emailService.sendLessonConfirmationEmail(teacher, teacher, lesson, meetLink);
+        }
 
         return toLessonResponse(lesson);
     }

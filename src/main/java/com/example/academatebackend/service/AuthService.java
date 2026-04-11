@@ -58,7 +58,7 @@ public class AuthService {
 
         boolean isChild = isChildAge(req.getBirthDate());
         if (!isChild && (req.getEmail() == null || req.getPassword() == null)) {
-            throw new BadRequestException("Email and password are required for students aged 13+");
+            throw new BadRequestException("Email and password are required for students aged 7+");
         }
         if (!isChild) {
             checkEmailUniqueness(req.getEmail());
@@ -319,7 +319,7 @@ public class AuthService {
 
     private boolean isChildAge(java.time.LocalDate birthDate) {
         if (birthDate == null) return false;
-        return java.time.Period.between(birthDate, java.time.LocalDate.now()).getYears() < 13;
+        return java.time.Period.between(birthDate, java.time.LocalDate.now()).getYears() < 7;
     }
 
     private String generateUsername() {

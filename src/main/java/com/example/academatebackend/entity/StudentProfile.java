@@ -67,6 +67,6 @@ public class StudentProfile implements Persistable<UUID> {
     }
 
     public boolean isChild() {
-        return getAge() < 13;
+        return getAge() < 7;
     }
 }
