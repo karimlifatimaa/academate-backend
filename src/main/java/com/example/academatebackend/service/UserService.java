@@ -8,6 +8,7 @@ import com.example.academatebackend.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.List;
@@ -28,22 +29,30 @@ public class UserService {
     // ── Avatar ────────────────────────────────────────────────────────────────
 
     @Transactional
-    public AvatarUploadResponse generateAvatarUploadUrl(UUID userId, String fileName, String contentType) {
+    public AvatarUploadResponse uploadAvatar(UUID userId, MultipartFile file) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
 
-        String uploadUrl = s3StorageService.generateUploadUrl("avatars", fileName, contentType);
-        String ext = fileName.contains(".") ? fileName.substring(fileName.lastIndexOf('.')) : "";
-        String key = "avatars/" + userId + ext;
-        String avatarUrl = s3StorageService.getObjectUrl(key);
+        try {
+            // Köhnə avatarı S3-dən sil
+            if (user.getAvatarUrl() != null) {
+                String oldKey = extractKeyFromUrl(user.getAvatarUrl());
+                if (oldKey != null) s3StorageService.delete(oldKey);
+            }
 
-        user.setAvatarUrl(avatarUrl);
-        userRepository.save(user);
+            String contentType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
+            String avatarUrl = s3StorageService.uploadFile(
+                    "avatars", file.getOriginalFilename(), contentType, file.getBytes());
 
-        return AvatarUploadResponse.builder()
-                .uploadUrl(uploadUrl)
-                .avatarUrl(avatarUrl)
-                .build();
+            user.setAvatarUrl(avatarUrl);
+            userRepository.save(user);
+
+            return AvatarUploadResponse.builder()
+                    .avatarUrl(avatarUrl)
+                    .build();
+        } catch (Exception e) {
+            throw new RuntimeException("Avatar yüklənərkən xəta baş verdi: " + e.getMessage());
+        }
     }
 
     // ── My profile ────────────────────────────────────────────────────────────
@@ -162,6 +171,17 @@ public class UserService {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private String extractKeyFromUrl(String url) {
+        // https://fra1.digitaloceanspaces.com/profile-image/avatars/uuid.png
+        // key = avatars/uuid.png
+        try {
+            String[] parts = url.split("/profile-image/");
+            return parts.length > 1 ? parts[1] : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     private UserResponse toUserResponse(User user) {
         return UserResponse.builder()

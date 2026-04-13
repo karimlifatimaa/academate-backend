@@ -4,13 +4,15 @@ import com.example.academatebackend.config.S3Properties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import java.io.IOException;
 import java.util.UUID;
 
 @Slf4j
@@ -67,6 +69,25 @@ public class S3StorageService {
                 .key(key)
                 .build());
         log.info("Deleted S3 object: {}", key);
+    }
+
+    /**
+     * Upload a file directly to S3 and return the public URL.
+     */
+    public String uploadFile(String folder, String fileName, String contentType, byte[] bytes) throws IOException {
+        String key = buildKey(folder, fileName);
+
+        PutObjectRequest putRequest = PutObjectRequest.builder()
+                .bucket(s3Properties.getBucketName())
+                .key(key)
+                .contentType(contentType)
+                .acl("public-read")
+                .build();
+
+        s3Client.putObject(putRequest, RequestBody.fromBytes(bytes));
+        log.info("Fayl S3-ə yükləndi: {}", key);
+
+        return s3Properties.getEndpoint() + "/" + s3Properties.getBucketName() + "/" + key;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

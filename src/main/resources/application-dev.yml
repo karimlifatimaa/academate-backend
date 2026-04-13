@@ -22,7 +22,7 @@ spring:
 app:
   s3:
     region: fra1
-    bucket: profile-image
+    bucket-name: profile-image
     access-key: DO00RCU24W7QDDJ77V74
     secret-key: MFNb1slRvHA+sG53X4qz6buzzybHslNzlvKdXO67cpE
     endpoint: https://fra1.digitaloceanspaces.com
