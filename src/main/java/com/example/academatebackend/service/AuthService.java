@@ -174,6 +174,7 @@ public class AuthService {
         ParentProfile profile = ParentProfile.builder()
                 .userId(user.getId())
                 .user(user)
+                .occupation(req.getOccupation())
                 .build();
         parentProfileRepository.save(profile);
 
