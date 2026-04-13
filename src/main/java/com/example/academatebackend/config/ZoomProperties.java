@@ -8,10 +8,9 @@ import org.springframework.stereotype.Component;
 @Getter
 @Setter
 @Component
-@ConfigurationProperties("app.google")
-public class GoogleCalendarProperties {
+@ConfigurationProperties("app.zoom")
+public class ZoomProperties {
+    private String accountId;
     private String clientId;
     private String clientSecret;
-    private String refreshToken;
-    private String calendarId = "primary";
 }

@@ -27,11 +27,10 @@ app:
     secret-key: MFNb1slRvHA+sG53X4qz6buzzybHslNzlvKdXO67cpE
     endpoint: https://fra1.digitaloceanspaces.com
 
-  google:
-    client-id: 966605955984-a2536djlra7n2vnf4u4codsk2kothdhv.apps.googleusercontent.com
-    client-secret: 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
-    refresh-token: "1//04wczR9a5cxi3CgYIARAAGAQSNwF-L9IrQtziuMDXbXZ5opuxlDZfcQZFoTiuIU-qimVuBZOPjVBYh0CJi157Sd_M7mmu2PDR7Bk"
-    calendar-id: primary
+  zoom:
+    account-id: KE1FzARKTjufHiuURlqGNQ
+    client-id: QfKsunLDRBa_gZja2Va1A
+    client-secret: ZdWdGjYeBtUp94qj1qT0tiLnJtRpDcLK
 
 logging:
   level:

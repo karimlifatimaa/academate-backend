@@ -2,7 +2,9 @@ package com.example.academatebackend.service;
 
 import com.example.academatebackend.entity.Lesson;
 import com.example.academatebackend.entity.User;
+import com.example.academatebackend.util.IcsGenerator;
 import jakarta.mail.internet.MimeMessage;
+import jakarta.mail.util.ByteArrayDataSource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -87,7 +89,7 @@ public class EmailService {
                       display:inline-block;padding:12px 24px;
                       background:#00C4B4;color:#fff;
                       border-radius:6px;text-decoration:none;font-weight:bold;">
-                    Google Meet-ə Qoşul
+                    Zoom-a Qoşul
                   </a>
                   """.formatted(meetLink)
                 : "<p>Görüşmə linki tezliklə əlavə ediləcək.</p>";
@@ -115,7 +117,8 @@ public class EmailService {
                 lesson.getDurationMinutes(),
                 linkSection);
 
-        send(recipient.getEmail(), "Academate — Dərs Təsdiqləndi: " + dateStr, html);
+        sendWithIcs(recipient.getEmail(), "Academate — Dərs Təsdiqləndi: " + dateStr, html,
+                IcsGenerator.generate(lesson, teacher, meetLink));
     }
 
     @Async
@@ -128,7 +131,7 @@ public class EmailService {
                       display:inline-block;padding:12px 24px;
                       background:#3B3F8C;color:#fff;
                       border-radius:6px;text-decoration:none;font-weight:bold;">
-                    Google Meet-ə Qoşul
+                    Dərsə Qoşul
                   </a>
                   """.formatted(lesson.getMeetingLink())
                 : "";
@@ -151,7 +154,8 @@ public class EmailService {
                 dateStr,
                 linkSection);
 
-        send(recipient.getEmail(), "Academate — Dərsinizə 1 saat qaldı!", html);
+        sendWithIcs(recipient.getEmail(), "Academate — Dərsinizə 1 saat qaldı!", html,
+                IcsGenerator.generate(lesson, teacher, lesson.getMeetingLink()));
     }
 
     private void send(String to, String subject, String htmlBody) {
@@ -162,6 +166,23 @@ public class EmailService {
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(htmlBody, true);
+            mailSender.send(message);
+            log.info("Email sent to {}", to);
+        } catch (Exception e) {
+            log.error("Failed to send email to {}: {}", to, e.getMessage());
+        }
+    }
+
+    private void sendWithIcs(String to, String subject, String htmlBody, String icsContent) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            helper.setFrom(fromAddress);
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(htmlBody, true);
+            helper.addAttachment("ders.ics",
+                    new ByteArrayDataSource(icsContent.getBytes(), "text/calendar;charset=UTF-8"));
             mailSender.send(message);
             log.info("Email sent to {}", to);
         } catch (Exception e) {

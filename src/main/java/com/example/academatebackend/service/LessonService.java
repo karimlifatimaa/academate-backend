@@ -25,7 +25,7 @@ public class LessonService {
 
     private final LessonRepository lessonRepository;
     private final UserRepository userRepository;
-    private final GoogleMeetService googleMeetService;
+    private final ZoomService zoomService;
     private final EmailService emailService;
 
     @Transactional
@@ -69,13 +69,13 @@ public class LessonService {
         User teacher = userRepository.findById(teacherId).orElseThrow();
         User student = userRepository.findById(lesson.getStudentId()).orElseThrow();
 
-        // Auto-generate Google Meet link
-        String meetLink = googleMeetService.createMeetLink(
+        // Auto-generate Zoom meeting link
+        String meetLink = zoomService.createMeeting(
                 "Academate — " + lesson.getSubject() + " dərsi",
                 lesson.getScheduledAt(),
                 lesson.getDurationMinutes());
         if (meetLink == null) {
-            log.warn("Google Meet linki yaradıla bilmədi, dərs ID: {}", lessonId);
+            log.warn("Zoom linki yaradıla bilmədi, dərs ID: {}", lessonId);
         }
 
         lesson.setStatus(LessonStatus.CONFIRMED);
