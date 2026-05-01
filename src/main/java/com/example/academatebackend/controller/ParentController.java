@@ -39,7 +39,7 @@ public class ParentController {
     @PostMapping("/link")
     @PreAuthorize("hasRole('PARENT')")
     public ResponseEntity<Void> linkChild(@Valid @RequestBody LinkChildRequest req) {
-        linkService.linkByInviteCode(SecurityUtils.requireCurrentUserId(), req.getInviteCode());
+        linkService.linkByInviteCode(SecurityUtils.requireCurrentUserId(), req.getInviteCode(), req.getRelation());
         return ResponseEntity.noContent().build();
     }
 

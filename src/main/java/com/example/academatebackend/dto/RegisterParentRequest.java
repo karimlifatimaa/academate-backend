@@ -23,4 +23,6 @@ public class RegisterParentRequest {
 
     @NotBlank
     private String phone;
+
+    private String occupation;
 }

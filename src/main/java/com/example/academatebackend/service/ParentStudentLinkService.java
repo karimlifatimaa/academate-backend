@@ -59,7 +59,7 @@ public class ParentStudentLinkService {
     // ── Parent: link to student via invite code ────────────────────────────────
 
     @Transactional
-    public void linkByInviteCode(UUID parentId, String code) {
+    public void linkByInviteCode(UUID parentId, String code, RelationType relation) {
         StudentInviteCode inviteCode = inviteCodeRepository.findByCode(code)
                 .orElseThrow(() -> new BadRequestException("Invalid invite code"));
 
@@ -84,7 +84,7 @@ public class ParentStudentLinkService {
 
         ParentStudentLink link = ParentStudentLink.builder()
                 .id(new ParentStudentLink.ParentStudentLinkId(parentId, studentId))
-                .relation(RelationType.GUARDIAN)
+                .relation(relation)
                 .verified(true)
                 .createdVia(LinkCreatedVia.INVITE_CODE)
                 .linkedAt(Instant.now())

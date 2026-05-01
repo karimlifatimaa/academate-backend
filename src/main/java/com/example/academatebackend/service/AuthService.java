@@ -13,6 +13,7 @@ import com.example.academatebackend.security.CustomUserDetails;
 import com.example.academatebackend.security.JwtService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -25,6 +26,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -54,6 +56,7 @@ public class AuthService {
 
     @Transactional
     public AuthResponse registerStudent(RegisterStudentRequest req, HttpServletRequest request) {
+        log.info("Register student attempt: email={} grade={}", req.getEmail(), req.getGrade());
         validateAgeMinimum(req.getBirthDate(), 5);
 
         boolean isChild = isChildAge(req.getBirthDate());
@@ -86,11 +89,13 @@ public class AuthService {
             emailVerificationService.sendVerificationEmail(user);
         }
 
+        log.info("Student registered: userId={} email={} isChild={}", user.getId(), user.getEmail(), isChild);
         return buildAuthResponse(user, request);
     }
 
     @Transactional
     public UserResponse registerChild(RegisterChildRequest req, UUID parentUserId, HttpServletRequest request) {
+        log.info("Register child attempt: parentId={} childName={}", parentUserId, req.getFullName());
         validateAgeMinimum(req.getBirthDate(), 5);
 
         String username = generateUsername();
@@ -123,11 +128,13 @@ public class AuthService {
                 .build();
         parentStudentLinkRepository.save(link);
 
+        log.info("Child registered and linked: childId={} parentId={}", childUser.getId(), parentUserId);
         return toUserResponse(childUser);
     }
 
     @Transactional
     public AuthResponse registerTeacher(RegisterTeacherRequest req, HttpServletRequest request) {
+        log.info("Register teacher attempt: email={} subjects={}", req.getEmail(), req.getSubjects());
         checkEmailUniqueness(req.getEmail());
 
         User user = User.builder()
@@ -155,11 +162,13 @@ public class AuthService {
         }
 
         emailVerificationService.sendVerificationEmail(user);
+        log.info("Teacher registered: userId={} email={}", user.getId(), user.getEmail());
         return buildAuthResponse(user, request);
     }
 
     @Transactional
     public AuthResponse registerParent(RegisterParentRequest req, HttpServletRequest request) {
+        log.info("Register parent attempt: email={}", req.getEmail());
         checkEmailUniqueness(req.getEmail());
 
         User user = User.builder()
@@ -174,10 +183,12 @@ public class AuthService {
         ParentProfile profile = ParentProfile.builder()
                 .userId(user.getId())
                 .user(user)
+                .occupation(req.getOccupation())
                 .build();
         parentProfileRepository.save(profile);
 
         emailVerificationService.sendVerificationEmail(user);
+        log.info("Parent registered: userId={} email={}", user.getId(), user.getEmail());
         return buildAuthResponse(user, request);
     }
 
@@ -185,10 +196,15 @@ public class AuthService {
 
     @Transactional
     public AuthResponse login(LoginRequest req, HttpServletRequest request) {
+        log.debug("Login attempt: identifier={}", req.getIdentifier());
         User user = userRepository.findByEmailOrUsername(req.getIdentifier(), req.getIdentifier())
-                .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
+                .orElseThrow(() -> {
+                    log.warn("Login failed - user not found: identifier={}", req.getIdentifier());
+                    return new UnauthorizedException("Invalid credentials");
+                });
 
         if (user.isLocked()) {
+            log.warn("Login blocked - account locked: userId={} until={}", user.getId(), user.getLockedUntil());
             throw new UnauthorizedException("Account is locked until " + user.getLockedUntil());
         }
 
@@ -198,6 +214,8 @@ public class AuthService {
             );
         } catch (BadCredentialsException e) {
             handleFailedLogin(user);
+            log.warn("Login failed - bad credentials: userId={} attempts={}",
+                    user.getId(), user.getFailedLoginAttempts());
             throw new UnauthorizedException("Invalid credentials");
         }
 
@@ -206,6 +224,7 @@ public class AuthService {
         user.setLastLoginAt(Instant.now());
         userRepository.save(user);
 
+        log.info("Login success: userId={} role={}", user.getId(), user.getRole());
         return buildAuthResponse(user, request);
     }
 
@@ -229,26 +248,31 @@ public class AuthService {
     @Transactional
     public void logout(RefreshTokenRequest req) {
         refreshTokenService.revoke(req.getRefreshToken());
+        log.info("Logout: refresh token revoked");
     }
 
     @Transactional
     public void logoutAll(UUID userId) {
         refreshTokenService.revokeAll(userId);
+        log.info("Logout-all: all refresh tokens revoked userId={}", userId);
     }
 
     // ── Password ──────────────────────────────────────────────────────────────
 
     @Transactional
     public void changePassword(UUID userId, ChangePasswordRequest req) {
+        log.info("Change password attempt: userId={}", userId);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
 
         if (!passwordEncoder.matches(req.getCurrentPassword(), user.getPasswordHash())) {
+            log.warn("Change password failed - wrong current password: userId={}", userId);
             throw new BadRequestException("Current password is incorrect");
         }
 
         user.setPasswordHash(passwordEncoder.encode(req.getNewPassword()));
         userRepository.save(user);
+        log.info("Password changed: userId={}", userId);
     }
 
     // ── Me ───────────────────────────────────────────────────────────────────
