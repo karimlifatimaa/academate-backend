@@ -2,6 +2,7 @@ package com.example.academatebackend.service;
 
 import com.example.academatebackend.common.exception.ResourceNotFoundException;
 import com.example.academatebackend.dto.*;
+import com.example.academatebackend.entity.Lesson;
 import com.example.academatebackend.entity.TeacherAvailability;
 import com.example.academatebackend.enums.Subject;
 import com.example.academatebackend.repository.*;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -24,6 +26,7 @@ public class TeacherService {
     private final TeacherSubjectRepository teacherSubjectRepository;
     private final TeacherAvailabilityRepository availabilityRepository;
     private final ReviewRepository reviewRepository;
+    private final LessonRepository lessonRepository;
 
     public Page<TeacherSearchResponse> searchTeachers(Subject subject, Pageable pageable) {
         Page<UUID> teacherIds;
@@ -91,5 +94,23 @@ public class TeacherService {
                 .startTime(a.getStartTime())
                 .endTime(a.getEndTime())
                 .build();
+    }
+
+    /**
+     * Public list of booked time ranges for a teacher within [from, to).
+     * Returns only the time windows — no student PII — so it's safe to expose
+     * publicly for client-side slot conflict checks.
+     */
+    public List<BookedTimeResponse> getBookedTimes(UUID teacherId, LocalDateTime from, LocalDateTime to) {
+        if (!userRepository.existsById(teacherId)) {
+            throw new ResourceNotFoundException("Teacher", teacherId);
+        }
+        List<Lesson> lessons = lessonRepository.findActiveBookingsInRange(teacherId, from, to);
+        return lessons.stream().map(l -> BookedTimeResponse.builder()
+                .startTime(l.getScheduledAt())
+                .endTime(l.getScheduledAt().plusMinutes(
+                        l.getDurationMinutes() != null ? l.getDurationMinutes() : 60))
+                .build()
+        ).collect(Collectors.toList());
     }
 }

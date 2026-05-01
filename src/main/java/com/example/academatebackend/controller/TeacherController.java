@@ -11,10 +11,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -44,6 +47,25 @@ public class TeacherController {
     @GetMapping("/{id}/availability")
     public ResponseEntity<List<AvailabilitySlotResponse>> getAvailability(@PathVariable UUID id) {
         return ResponseEntity.ok(teacherService.getAvailability(id));
+    }
+
+    /**
+     * Booked time ranges for a teacher within [from, to). Public — returns only
+     * start/end timestamps (no student PII) so the booking UI can show which slots
+     * are taken. If `from`/`to` are omitted, defaults to the next 14 days.
+     */
+    @GetMapping("/{id}/booked-times")
+    public ResponseEntity<List<BookedTimeResponse>> getBookedTimes(
+            @PathVariable UUID id,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        LocalDate fromDate = from != null ? from : LocalDate.now();
+        LocalDate toDate = to != null ? to : fromDate.plusDays(14);
+        LocalDateTime fromDt = fromDate.atStartOfDay();
+        LocalDateTime toDt = toDate.atStartOfDay();
+        return ResponseEntity.ok(teacherService.getBookedTimes(id, fromDt, toDt));
     }
 
     @GetMapping("/{id}/reviews")
