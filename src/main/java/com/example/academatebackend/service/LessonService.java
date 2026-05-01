@@ -41,6 +41,9 @@ public class LessonService {
 
     @Transactional
     public LessonResponse book(UUID studentId, BookLessonRequest req) {
+        log.info("Book lesson attempt: studentId={} teacherId={} subject={} scheduledAt={}",
+                studentId, req.getTeacherId(), req.getSubject(), req.getScheduledAt());
+
         userRepository.findById(req.getTeacherId())
                 .orElseThrow(() -> new ResourceNotFoundException("Teacher", req.getTeacherId()));
 
@@ -65,7 +68,10 @@ public class LessonService {
                 .status(LessonStatus.PENDING)
                 .build();
 
-        return toLessonResponse(lessonRepository.save(lesson));
+        Lesson saved = lessonRepository.save(lesson);
+        log.info("Lesson booked: lessonId={} studentId={} teacherId={}",
+                saved.getId(), studentId, req.getTeacherId());
+        return toLessonResponse(saved);
     }
 
     /**
@@ -83,10 +89,12 @@ public class LessonService {
                 .toList();
 
         if (daySlots.isEmpty()) {
+            log.warn("Booking rejected - no availability for day: teacherId={} day={}", teacherId, day);
             throw new BadRequestException("Müəllim seçdiyiniz gün üçün mövcudluq cədvəlinə malik deyil");
         }
 
         if (spansMidnight) {
+            log.warn("Booking rejected - spans midnight: teacherId={} start={} end={}", teacherId, start, end);
             throw new BadRequestException("Dərs eyni gün ərzində bitməlidir");
         }
 
@@ -94,6 +102,8 @@ public class LessonService {
                 !startTime.isBefore(a.getStartTime()) && !endTime.isAfter(a.getEndTime())
         );
         if (!fits) {
+            log.warn("Booking rejected - outside availability window: teacherId={} requested={}-{} day={}",
+                    teacherId, startTime, endTime, day);
             throw new BadRequestException("Seçdiyiniz vaxt müəllimin mövcudluq saatlarına uyğun deyil");
         }
     }
@@ -105,12 +115,14 @@ public class LessonService {
     private void validateNoConflict(UUID teacherId, LocalDateTime start, LocalDateTime end, int durationMinutes) {
         LocalDateTime earliestStart = start.minusMinutes(MAX_LESSON_MINUTES);
         List<Lesson> candidates = lessonRepository.findOverlapCandidates(teacherId, earliestStart, end);
-        boolean conflict = candidates.stream().anyMatch(l -> {
+        Lesson conflicting = candidates.stream().filter(l -> {
             int existingMinutes = l.getDurationMinutes() != null ? l.getDurationMinutes() : 60;
             LocalDateTime existingEnd = l.getScheduledAt().plusMinutes(existingMinutes);
             return l.getScheduledAt().isBefore(end) && existingEnd.isAfter(start);
-        });
-        if (conflict) {
+        }).findFirst().orElse(null);
+        if (conflicting != null) {
+            log.warn("Booking rejected - conflict: teacherId={} requested={}-{} conflictsWith lessonId={} ({})",
+                    teacherId, start, end, conflicting.getId(), conflicting.getScheduledAt());
             throw new ConflictException("Bu vaxt artıq başqa şagird tərəfindən rezerv edilib");
         }
     }
@@ -131,9 +143,17 @@ public class LessonService {
 
     @Transactional
     public LessonResponse confirm(UUID teacherId, UUID lessonId) {
+        log.info("Confirm lesson: teacherId={} lessonId={}", teacherId, lessonId);
         Lesson lesson = getLesson(lessonId);
-        if (!lesson.getTeacherId().equals(teacherId)) throw new ForbiddenException("Bu dərs sizin deyil");
-        if (lesson.getStatus() != LessonStatus.PENDING) throw new BadRequestException("Yalnız PENDING dərslər təsdiqlənə bilər");
+        if (!lesson.getTeacherId().equals(teacherId)) {
+            log.warn("Confirm rejected - not owner: teacherId={} lessonId={} actualTeacherId={}",
+                    teacherId, lessonId, lesson.getTeacherId());
+            throw new ForbiddenException("Bu dərs sizin deyil");
+        }
+        if (lesson.getStatus() != LessonStatus.PENDING) {
+            log.warn("Confirm rejected - bad status: lessonId={} status={}", lessonId, lesson.getStatus());
+            throw new BadRequestException("Yalnız PENDING dərslər təsdiqlənə bilər");
+        }
 
         User teacher = userRepository.findById(teacherId).orElseThrow();
         User student = userRepository.findById(lesson.getStudentId()).orElseThrow();
@@ -159,32 +179,50 @@ public class LessonService {
             emailService.sendLessonConfirmationEmail(teacher, teacher, lesson, meetLink);
         }
 
+        log.info("Lesson confirmed: lessonId={} hasMeetLink={}", lessonId, meetLink != null);
         return toLessonResponse(lesson);
     }
 
     @Transactional
     public LessonResponse cancel(UUID userId, UUID lessonId, CancelLessonRequest req) {
+        log.info("Cancel lesson: userId={} lessonId={} reason={}",
+                userId, lessonId, req != null ? req.getReason() : null);
         Lesson lesson = getLesson(lessonId);
         boolean isTeacher = lesson.getTeacherId().equals(userId);
         boolean isStudent = lesson.getStudentId().equals(userId);
-        if (!isTeacher && !isStudent) throw new ForbiddenException("Bu dərs sizin deyil");
+        if (!isTeacher && !isStudent) {
+            log.warn("Cancel rejected - not party to lesson: userId={} lessonId={}", userId, lessonId);
+            throw new ForbiddenException("Bu dərs sizin deyil");
+        }
         if (lesson.getStatus() == LessonStatus.COMPLETED || lesson.getStatus() == LessonStatus.CANCELLED) {
+            log.warn("Cancel rejected - terminal status: lessonId={} status={}", lessonId, lesson.getStatus());
             throw new BadRequestException("Bu dərs artıq " + lesson.getStatus() + " statusundadır");
         }
 
         lesson.setStatus(LessonStatus.CANCELLED);
         lesson.setCancellationReason(req != null ? req.getReason() : null);
-        return toLessonResponse(lessonRepository.save(lesson));
+        Lesson saved = lessonRepository.save(lesson);
+        log.info("Lesson cancelled: lessonId={} by={}", lessonId, isTeacher ? "TEACHER" : "STUDENT");
+        return toLessonResponse(saved);
     }
 
     @Transactional
     public LessonResponse complete(UUID teacherId, UUID lessonId) {
+        log.info("Complete lesson: teacherId={} lessonId={}", teacherId, lessonId);
         Lesson lesson = getLesson(lessonId);
-        if (!lesson.getTeacherId().equals(teacherId)) throw new ForbiddenException("Bu dərs sizin deyil");
-        if (lesson.getStatus() != LessonStatus.CONFIRMED) throw new BadRequestException("Yalnız CONFIRMED dərslər tamamlana bilər");
+        if (!lesson.getTeacherId().equals(teacherId)) {
+            log.warn("Complete rejected - not owner: teacherId={} lessonId={}", teacherId, lessonId);
+            throw new ForbiddenException("Bu dərs sizin deyil");
+        }
+        if (lesson.getStatus() != LessonStatus.CONFIRMED) {
+            log.warn("Complete rejected - not CONFIRMED: lessonId={} status={}", lessonId, lesson.getStatus());
+            throw new BadRequestException("Yalnız CONFIRMED dərslər tamamlana bilər");
+        }
 
         lesson.setStatus(LessonStatus.COMPLETED);
-        return toLessonResponse(lessonRepository.save(lesson));
+        Lesson saved = lessonRepository.save(lesson);
+        log.info("Lesson completed: lessonId={}", lessonId);
+        return toLessonResponse(saved);
     }
 
     private Lesson getLesson(UUID lessonId) {

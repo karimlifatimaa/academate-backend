@@ -21,7 +21,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiError> handleApiException(ApiException ex, HttpServletRequest request) {
-        log.warn("ApiException [{}]: {}", ex.getStatus(), ex.getMessage());
+        log.warn("ApiException [{}] {} {}: {}",
+                ex.getStatus().value(), request.getMethod(), request.getRequestURI(), ex.getMessage());
         return ResponseEntity.status(ex.getStatus()).body(ApiError.builder()
                 .status(ex.getStatus().value())
                 .title(ex.getTitle())
@@ -42,6 +43,12 @@ public class GlobalExceptionHandler {
                         .build())
                 .toList();
 
+        log.warn("Validation failed on {} {}: {}",
+                request.getMethod(), request.getRequestURI(),
+                fieldErrors.stream()
+                        .map(fe -> fe.getField() + "=" + fe.getMessage())
+                        .toList());
+
         return ResponseEntity.badRequest().body(ApiError.builder()
                 .status(HttpStatus.BAD_REQUEST.value())
                 .title("Validation Failed")
@@ -54,6 +61,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        log.warn("Access denied on {} {} (msg: {})",
+                request.getMethod(), request.getRequestURI(), ex.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiError.builder()
                 .status(HttpStatus.FORBIDDEN.value())
                 .title("Forbidden")
@@ -65,6 +74,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiError> handleAuthentication(AuthenticationException ex, HttpServletRequest request) {
+        log.warn("Authentication failed on {} {} (msg: {})",
+                request.getMethod(), request.getRequestURI(), ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiError.builder()
                 .status(HttpStatus.UNAUTHORIZED.value())
                 .title("Unauthorized")
@@ -76,7 +87,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGeneral(Exception ex, HttpServletRequest request) {
-        log.error("Unhandled exception", ex);
+        log.error("Unhandled exception on {} {}",
+                request.getMethod(), request.getRequestURI(), ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiError.builder()
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .title("Internal Server Error")
