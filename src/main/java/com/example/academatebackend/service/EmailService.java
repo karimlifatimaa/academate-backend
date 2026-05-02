@@ -23,12 +23,15 @@ public class EmailService {
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
 
+    @Value("${app.frontend-url:http://localhost:3000}")
+    private String frontendUrl;
+
     @Value("${spring.mail.username:noreply@academate.az}")
     private String fromAddress;
 
     @Async
     public void sendVerificationEmail(User user, String token) {
-        String link = baseUrl + "/api/v1/auth/verify-email?token=" + token;
+        String link = frontendUrl + "/verify-email?token=" + token;
         String html = """
                 <h2>Academate — Email Təsdiqi</h2>
                 <p>Salam, <strong>%s</strong>!</p>
@@ -48,7 +51,7 @@ public class EmailService {
 
     @Async
     public void sendPasswordResetEmail(User user, String token) {
-        String link = baseUrl + "/api/v1/auth/reset-password?token=" + token;
+        String link = frontendUrl + "/reset-password?token=" + token;
         String html = """
                 <h2>Academate — Şifrə Bərpası</h2>
                 <p>Salam, <strong>%s</strong>!</p>
