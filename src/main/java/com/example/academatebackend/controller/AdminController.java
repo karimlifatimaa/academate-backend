@@ -1,5 +1,6 @@
 package com.example.academatebackend.controller;
 
+import com.example.academatebackend.dto.AdminStatsResponse;
 import com.example.academatebackend.dto.TeacherSummaryResponse;
 import com.example.academatebackend.dto.UserResponse;
 import com.example.academatebackend.enums.Role;
@@ -22,6 +23,11 @@ import java.util.UUID;
 public class AdminController {
 
     private final AdminService adminService;
+
+    @GetMapping("/stats")
+    public ResponseEntity<AdminStatsResponse> stats() {
+        return ResponseEntity.ok(adminService.getStats());
+    }
 
     @GetMapping("/users")
     public ResponseEntity<Page<UserResponse>> listUsers(

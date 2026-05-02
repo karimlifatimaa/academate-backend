@@ -71,6 +71,30 @@ public class EmailService {
     }
 
     @Async
+    public void sendNewTeacherForVerification(String adminEmail, User teacher) {
+        String reviewLink = frontendUrl + "/admin/teachers";
+        String html = """
+                <h2>Academate — Yeni müəllim qeydiyyatı</h2>
+                <p>Yeni bir müəllim hesab yaratdı və təsdiqlənməyi gözləyir:</p>
+                <ul>
+                  <li><strong>Ad:</strong> %s</li>
+                  <li><strong>Email:</strong> %s</li>
+                </ul>
+                <p>Profili yoxlamaq və təsdiqləmək üçün:</p>
+                <a href="%s" style="
+                    display:inline-block;padding:12px 24px;
+                    background:#4A6741;color:#fff;
+                    border-radius:6px;text-decoration:none;font-weight:bold;">
+                  Müəllimləri yoxla
+                </a>
+                """.formatted(
+                        teacher.getFullName(),
+                        teacher.getEmail() != null ? teacher.getEmail() : "—",
+                        reviewLink);
+        send(adminEmail, "Academate — Yeni müəllim təsdiq gözləyir", html);
+    }
+
+    @Async
     public void sendParentLinkNotification(User student, User parent) {
         if (student.getEmail() == null) return;
         String html = """

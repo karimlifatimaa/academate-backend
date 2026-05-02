@@ -40,6 +40,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final EmailVerificationService emailVerificationService;
+    private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
 
@@ -162,8 +163,24 @@ public class AuthService {
         }
 
         emailVerificationService.sendVerificationEmail(user);
+        notifyAdminsOfNewTeacher(user);
         log.info("Teacher registered: userId={} email={}", user.getId(), user.getEmail());
         return buildAuthResponse(user, request);
+    }
+
+    private void notifyAdminsOfNewTeacher(User teacher) {
+        var admins = userRepository.findAllByRole(Role.ADMIN);
+        if (admins.isEmpty()) {
+            log.warn("No admins found to notify about new teacher: {}", teacher.getId());
+            return;
+        }
+        for (User admin : admins) {
+            if (admin.getEmail() != null && !admin.getEmail().isBlank()) {
+                emailService.sendNewTeacherForVerification(admin.getEmail(), teacher);
+            }
+        }
+        log.info("Admin notification dispatched for new teacher: teacherId={} adminCount={}",
+                teacher.getId(), admins.size());
     }
 
     @Transactional

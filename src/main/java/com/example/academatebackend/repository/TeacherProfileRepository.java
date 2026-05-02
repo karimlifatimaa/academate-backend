@@ -14,4 +14,8 @@ public interface TeacherProfileRepository extends JpaRepository<TeacherProfile, 
 
     @Query("SELECT tp.id FROM TeacherProfile tp")
     Page<UUID> findAllTeacherIds(Pageable pageable);
+
+    long countByIsVerifiedTrue();
+
+    long countByIsVerifiedFalseOrIsVerifiedIsNull();
 }

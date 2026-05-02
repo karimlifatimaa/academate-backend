@@ -2,6 +2,7 @@ package com.example.academatebackend.service;
 
 import com.example.academatebackend.common.exception.BadRequestException;
 import com.example.academatebackend.common.exception.ResourceNotFoundException;
+import com.example.academatebackend.dto.AdminStatsResponse;
 import com.example.academatebackend.dto.TeacherSummaryResponse;
 import com.example.academatebackend.dto.UserResponse;
 import com.example.academatebackend.entity.TeacherProfile;
@@ -87,6 +88,17 @@ public class AdminService {
                 ? userRepository.findByRole(role, pageable)
                 : userRepository.findAll(pageable);
         return users.map(this::toUserResponse);
+    }
+
+    public AdminStatsResponse getStats() {
+        return AdminStatsResponse.builder()
+                .totalUsers(userRepository.count())
+                .totalStudents(userRepository.countByRole(Role.STUDENT))
+                .totalTeachers(userRepository.countByRole(Role.TEACHER))
+                .totalParents(userRepository.countByRole(Role.PARENT))
+                .verifiedTeachers(teacherProfileRepository.countByIsVerifiedTrue())
+                .pendingTeachers(teacherProfileRepository.countByIsVerifiedFalseOrIsVerifiedIsNull())
+                .build();
     }
 
     private UserResponse toUserResponse(User user) {
