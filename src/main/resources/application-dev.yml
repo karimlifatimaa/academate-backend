@@ -31,6 +31,7 @@ app:
     account-id: KE1FzARKTjufHiuURlqGNQ
     client-id: QfKsunLDRBa_gZja2Va1A
     client-secret: ZdWdGjYeBtUp94qj1qT0tiLnJtRpDcLK
+    webhook-secret-token: yV5CpoUnQZCbFRbX85_MJw
 
 logging:
   level:

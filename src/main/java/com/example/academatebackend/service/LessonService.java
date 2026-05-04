@@ -159,27 +159,30 @@ public class LessonService {
         User student = userRepository.findById(lesson.getStudentId()).orElseThrow();
 
         // Auto-generate Zoom meeting link
-        String meetLink = zoomService.createMeeting(
+        ZoomService.ZoomMeeting zoomMeeting = zoomService.createMeeting(
                 "Academate — " + lesson.getSubject() + " dərsi",
                 lesson.getScheduledAt(),
                 lesson.getDurationMinutes());
-        if (meetLink == null) {
+        if (zoomMeeting == null) {
             log.warn("Zoom linki yaradıla bilmədi, dərs ID: {}", lessonId);
         }
 
         lesson.setStatus(LessonStatus.CONFIRMED);
-        lesson.setMeetingLink(meetLink);
+        lesson.setMeetingLink(zoomMeeting != null ? zoomMeeting.joinUrl() : null);
+        lesson.setZoomMeetingId(zoomMeeting != null ? zoomMeeting.meetingId() : null);
         lessonRepository.save(lesson);
+
+        String joinUrl = zoomMeeting != null ? zoomMeeting.joinUrl() : null;
 
         // Send confirmation emails
         if (student.getEmail() != null) {
-            emailService.sendLessonConfirmationEmail(student, teacher, lesson, meetLink);
+            emailService.sendLessonConfirmationEmail(student, teacher, lesson, joinUrl);
         }
         if (teacher.getEmail() != null) {
-            emailService.sendLessonConfirmationEmail(teacher, teacher, lesson, meetLink);
+            emailService.sendLessonConfirmationEmail(teacher, teacher, lesson, joinUrl);
         }
 
-        log.info("Lesson confirmed: lessonId={} hasMeetLink={}", lessonId, meetLink != null);
+        log.info("Lesson confirmed: lessonId={} hasMeetLink={}", lessonId, joinUrl != null);
         return toLessonResponse(lesson);
     }
 

@@ -26,7 +26,9 @@ public class ZoomService {
     private static final String TOKEN_URL = "https://zoom.us/oauth/token?grant_type=account_credentials&account_id=";
     private static final String MEETINGS_URL = "https://api.zoom.us/v2/users/me/meetings";
 
-    public String createMeeting(String topic, LocalDateTime scheduledAt, int durationMinutes) {
+    public record ZoomMeeting(String meetingId, String joinUrl) {}
+
+    public ZoomMeeting createMeeting(String topic, LocalDateTime scheduledAt, int durationMinutes) {
         try {
             String accessToken = getAccessToken();
             if (accessToken == null) return null;
@@ -60,9 +62,10 @@ public class ZoomService {
             );
 
             JsonNode json = objectMapper.readTree(response.getBody());
+            String meetingId = json.get("id").asText();
             String joinUrl = json.get("join_url").asText();
-            log.info("Zoom meeting yaradıldı: {}", joinUrl);
-            return joinUrl;
+            log.info("Zoom meeting yaradıldı: id={} url={}", meetingId, joinUrl);
+            return new ZoomMeeting(meetingId, joinUrl);
 
         } catch (Exception e) {
             log.error("Zoom meeting yaradılarkən xəta: {}", e.getMessage());

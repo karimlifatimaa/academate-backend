@@ -13,4 +13,5 @@ public class ZoomProperties {
     private String accountId;
     private String clientId;
     private String clientSecret;
+    private String webhookSecretToken;
 }

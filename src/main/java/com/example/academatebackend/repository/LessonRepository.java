@@ -10,9 +10,12 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface LessonRepository extends JpaRepository<Lesson, UUID> {
+    Optional<Lesson> findByZoomMeetingId(String zoomMeetingId);
+
     Page<Lesson> findByStudentId(UUID studentId, Pageable pageable);
     Page<Lesson> findByTeacherId(UUID teacherId, Pageable pageable);
     Page<Lesson> findByStudentIdAndStatus(UUID studentId, LessonStatus status, Pageable pageable);

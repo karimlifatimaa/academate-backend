@@ -39,6 +39,9 @@ public class Lesson extends BaseEntity {
 
     private String meetingLink;
 
+    @Column(unique = true)
+    private String zoomMeetingId;
+
     @Column(columnDefinition = "TEXT")
     private String notes;
 
