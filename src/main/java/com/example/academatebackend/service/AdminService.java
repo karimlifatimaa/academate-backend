@@ -8,6 +8,7 @@ import com.example.academatebackend.dto.UserResponse;
 import com.example.academatebackend.entity.TeacherProfile;
 import com.example.academatebackend.entity.User;
 import com.example.academatebackend.enums.Role;
+import com.example.academatebackend.repository.TeacherAvailabilityRepository;
 import com.example.academatebackend.repository.TeacherProfileRepository;
 import com.example.academatebackend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,20 +28,11 @@ public class AdminService {
 
     private final UserRepository userRepository;
     private final TeacherProfileRepository teacherProfileRepository;
+    private final TeacherAvailabilityRepository availabilityRepository;
 
     public Page<TeacherSummaryResponse> listTeachers(Pageable pageable) {
         return userRepository.findByRole(Role.TEACHER, pageable)
-                .map(user -> {
-                    TeacherProfile profile = teacherProfileRepository.findById(user.getId()).orElse(null);
-                    return TeacherSummaryResponse.builder()
-                            .userId(user.getId())
-                            .fullName(user.getFullName())
-                            .email(user.getEmail())
-                            .phone(user.getPhone())
-                            .isVerified(profile != null && Boolean.TRUE.equals(profile.getIsVerified()))
-                            .verifiedAt(profile != null ? profile.getVerifiedAt() : null)
-                            .build();
-                });
+                .map(user -> toSummary(user, teacherProfileRepository.findById(user.getId()).orElse(null)));
     }
 
     @Transactional
@@ -57,20 +49,46 @@ public class AdminService {
         TeacherProfile profile = teacherProfileRepository.findById(teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("TeacherProfile", teacherId));
 
+        boolean profileComplete = isProfileComplete(profile);
+        boolean availabilityComplete = isAvailabilityComplete(teacherId);
+        if (!profileComplete || !availabilityComplete) {
+            log.warn("Verify rejected - onboarding incomplete: teacherId={} profileComplete={} availabilityComplete={}",
+                    teacherId, profileComplete, availabilityComplete);
+            throw new BadRequestException(
+                    "Müəllim profilini və mövcudluq cədvəlini tamamlamayıb — təsdiqləmək olmaz");
+        }
+
         profile.setIsVerified(true);
         profile.setVerifiedAt(Instant.now());
         profile.setVerifiedBy(adminId);
         teacherProfileRepository.save(profile);
 
         log.info("Teacher verified: teacherId={} by adminId={}", teacherId, adminId);
+        return toSummary(teacher, profile);
+    }
+
+    private TeacherSummaryResponse toSummary(User user, TeacherProfile profile) {
         return TeacherSummaryResponse.builder()
-                .userId(teacher.getId())
-                .fullName(teacher.getFullName())
-                .email(teacher.getEmail())
-                .phone(teacher.getPhone())
-                .isVerified(true)
-                .verifiedAt(profile.getVerifiedAt())
+                .userId(user.getId())
+                .fullName(user.getFullName())
+                .email(user.getEmail())
+                .phone(user.getPhone())
+                .isVerified(profile != null && Boolean.TRUE.equals(profile.getIsVerified()))
+                .verifiedAt(profile != null ? profile.getVerifiedAt() : null)
+                .profileComplete(isProfileComplete(profile))
+                .availabilityComplete(isAvailabilityComplete(user.getId()))
                 .build();
+    }
+
+    private boolean isProfileComplete(TeacherProfile profile) {
+        return profile != null
+                && profile.getBio() != null && !profile.getBio().isBlank()
+                && profile.getHourlyRate() != null
+                && profile.getHourlyRate().signum() > 0;
+    }
+
+    private boolean isAvailabilityComplete(UUID teacherId) {
+        return !availabilityRepository.findByTeacherId(teacherId).isEmpty();
     }
 
     @Transactional

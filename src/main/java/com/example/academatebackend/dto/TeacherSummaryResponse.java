@@ -15,4 +15,8 @@ public class TeacherSummaryResponse {
     private String phone;
     private Boolean isVerified;
     private Instant verifiedAt;
+    /** True when bio + hourlyRate are filled in. */
+    private Boolean profileComplete;
+    /** True when the teacher has at least one availability window saved. */
+    private Boolean availabilityComplete;
 }
