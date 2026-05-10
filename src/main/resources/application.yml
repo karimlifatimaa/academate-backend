@@ -36,8 +36,8 @@ spring:
             enable: ${SMTP_STARTTLS:false}
   servlet:
     multipart:
-      max-file-size: 50MB
-      max-request-size: 500MB
+      max-file-size: 10MB
+      max-request-size: 15MB
   jackson:
     default-property-inclusion: non_null
     serialization:
@@ -54,8 +54,12 @@ server:
 app:
   base-url: ${APP_BASE_URL:http://localhost:8080}
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  admin:
+    email: ${ADMIN_EMAIL}
+    password: ${ADMIN_PASSWORD}
+    full-name: ${ADMIN_FULL_NAME:Admin}
   jwt:
-    secret: ${JWT_SECRET:changeme-please-use-at-least-256-bit-secret-in-production-environment}
+    secret: ${JWT_SECRET}
     access-token-expiration: PT15M
     refresh-token-expiration: P7D
     issuer: academate

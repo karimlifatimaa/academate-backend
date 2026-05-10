@@ -1,5 +1,6 @@
 package com.example.academatebackend.service;
 
+import com.example.academatebackend.common.exception.BadRequestException;
 import com.example.academatebackend.common.exception.ResourceNotFoundException;
 import com.example.academatebackend.dto.*;
 import com.example.academatebackend.entity.*;
@@ -12,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -26,23 +28,39 @@ public class UserService {
     private final ParentProfileRepository parentProfileRepository;
     private final S3StorageService s3StorageService;
 
+    private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of(
+            "image/jpeg", "image/png", "image/webp", "image/gif"
+    );
+    private static final long MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB
+
     // ── Avatar ────────────────────────────────────────────────────────────────
 
     @Transactional
     public AvatarUploadResponse uploadAvatar(UUID userId, MultipartFile file) {
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_IMAGE_TYPES.contains(contentType.toLowerCase())) {
+            throw new BadRequestException("Yalnız JPEG, PNG, WebP və GIF formatları qəbul edilir");
+        }
+        if (file.getSize() > MAX_AVATAR_BYTES) {
+            throw new BadRequestException("Fayl ölçüsü 5 MB-dan çox ola bilməz");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null || originalFilename.contains("..") || originalFilename.contains("/")) {
+            throw new BadRequestException("Etibarsız fayl adı");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
 
         try {
-            // Köhnə avatarı S3-dən sil
             if (user.getAvatarUrl() != null) {
                 String oldKey = extractKeyFromUrl(user.getAvatarUrl());
                 if (oldKey != null) s3StorageService.delete(oldKey);
             }
 
-            String contentType = file.getContentType() != null ? file.getContentType() : "image/jpeg";
             String avatarUrl = s3StorageService.uploadFile(
-                    "avatars", file.getOriginalFilename(), contentType, file.getBytes());
+                    "avatars", originalFilename, contentType, file.getBytes());
 
             user.setAvatarUrl(avatarUrl);
             userRepository.save(user);
@@ -50,13 +68,16 @@ public class UserService {
             return AvatarUploadResponse.builder()
                     .avatarUrl(avatarUrl)
                     .build();
+        } catch (BadRequestException e) {
+            throw e;
         } catch (Exception e) {
-            throw new RuntimeException("Avatar yüklənərkən xəta baş verdi: " + e.getMessage());
+            throw new BadRequestException("Avatar yüklənərkən xəta baş verdi");
         }
     }
 
     // ── My profile ────────────────────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public MyProfileResponse getMyProfile(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
@@ -137,6 +158,7 @@ public class UserService {
 
     // ── Public teacher profile ────────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public TeacherPublicProfileResponse getTeacherPublicProfile(UUID teacherId) {
         User user = userRepository.findById(teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", teacherId));

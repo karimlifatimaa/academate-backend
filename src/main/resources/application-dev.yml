@@ -20,6 +20,14 @@ spring:
             enable: true
 
 app:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-secret-change-in-production-at-least-256-bits-long-xxxxxxxxx}
+
+  admin:
+    email: kerimlifatime417@gmail.com
+    password: ${ADMIN_PASSWORD:Fatima@2024!}
+    full-name: Fatima
+
   s3:
     region: fra1
     bucket-name: profile-image

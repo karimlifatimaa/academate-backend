@@ -3,6 +3,7 @@ package com.example.academatebackend.service;
 import com.example.academatebackend.common.exception.BadRequestException;
 import com.example.academatebackend.common.exception.ConflictException;
 import com.example.academatebackend.common.exception.ResourceNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import com.example.academatebackend.dto.CreateReviewRequest;
 import com.example.academatebackend.dto.ReviewResponse;
 import com.example.academatebackend.entity.Lesson;
@@ -45,7 +46,11 @@ public class ReviewService {
                 .rating(req.getRating())
                 .comment(req.getComment())
                 .build();
-        reviewRepository.save(review);
+        try {
+            reviewRepository.save(review);
+        } catch (DataIntegrityViolationException e) {
+            throw new ConflictException("Bu dərs üçün artıq rəy yazılıb");
+        }
 
         // Update teacher's average rating
         Double avg = reviewRepository.findAverageRatingByTeacherId(teacherId);
@@ -59,6 +64,7 @@ public class ReviewService {
         return toResponse(review, studentId);
     }
 
+    @Transactional(readOnly = true)
     public Page<ReviewResponse> getTeacherReviews(UUID teacherId, Pageable pageable) {
         return reviewRepository.findByTeacherId(teacherId, pageable)
                 .map(r -> toResponse(r, r.getStudentId()));

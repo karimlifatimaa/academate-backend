@@ -18,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -26,28 +27,55 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+    private record BucketEntry(Bucket bucket, Instant lastAccess) {}
+
+    private record PathRule(String prefix, int capacity, Duration period) {}
+
+    private final Map<String, BucketEntry> buckets = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper;
 
     @Value("${app.rate-limit.requests-per-minute:60}")
-    private int requestsPerMinute;
+    private int defaultRequestsPerMinute;
+
+    @Value("${app.rate-limit.login-per-minute:5}")
+    private int loginPerMinute;
+
+    @Value("${app.rate-limit.register-per-hour:3}")
+    private int registerPerHour;
+
+    @Value("${app.rate-limit.forgot-password-per-hour:3}")
+    private int forgotPasswordPerHour;
 
     public RateLimitFilter(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
+    }
+
+    private List<PathRule> pathRules() {
+        return List.of(
+            new PathRule("/api/v1/auth/login", loginPerMinute, Duration.ofMinutes(1)),
+            new PathRule("/api/v1/auth/register", registerPerHour, Duration.ofHours(1)),
+            new PathRule("/api/v1/auth/forgot-password", forgotPasswordPerHour, Duration.ofHours(1))
+        );
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
-        String key = getClientIp(request);
-        Bucket bucket = buckets.computeIfAbsent(key, this::newBucket);
+        evictStaleBuckets();
+
+        String ip = request.getRemoteAddr();
+        String path = request.getRequestURI();
+        String bucketKey = resolveBucketKey(ip, path);
+        PathRule rule = resolveRule(path);
+
+        Bucket bucket = buckets.computeIfAbsent(bucketKey, k -> new BucketEntry(newBucket(rule), Instant.now())).bucket();
+        buckets.computeIfPresent(bucketKey, (k, e) -> new BucketEntry(e.bucket(), Instant.now()));
 
         if (bucket.tryConsume(1)) {
             chain.doFilter(request, response);
         } else {
-            log.warn("Rate limit exceeded for ip={} path={} {}",
-                    key, request.getMethod(), request.getRequestURI());
+            log.warn("Rate limit exceeded for ip={} path={} {}", ip, request.getMethod(), path);
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             ApiError error = ApiError.builder()
@@ -61,19 +89,33 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
     }
 
-    private Bucket newBucket(String key) {
+    private String resolveBucketKey(String ip, String path) {
+        for (PathRule rule : pathRules()) {
+            if (path.startsWith(rule.prefix())) {
+                return rule.prefix() + ":" + ip;
+            }
+        }
+        return "default:" + ip;
+    }
+
+    private PathRule resolveRule(String path) {
+        for (PathRule rule : pathRules()) {
+            if (path.startsWith(rule.prefix())) return rule;
+        }
+        return new PathRule("default", defaultRequestsPerMinute, Duration.ofMinutes(1));
+    }
+
+    private Bucket newBucket(PathRule rule) {
         Bandwidth limit = Bandwidth.builder()
-                .capacity(requestsPerMinute)
-                .refillGreedy(requestsPerMinute, Duration.ofMinutes(1))
+                .capacity(rule.capacity())
+                .refillGreedy(rule.capacity(), rule.period())
                 .build();
         return Bucket.builder().addLimit(limit).build();
     }
 
-    private String getClientIp(HttpServletRequest request) {
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return forwarded.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
+    private void evictStaleBuckets() {
+        if (buckets.size() < 500) return;
+        Instant cutoff = Instant.now().minus(Duration.ofHours(2));
+        buckets.entrySet().removeIf(e -> e.getValue().lastAccess().isBefore(cutoff));
     }
 }

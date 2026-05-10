@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.HexFormat;
 import java.util.Optional;
 
@@ -113,7 +114,8 @@ public class ZoomWebhookController {
         try {
             String message = "v0:" + timestamp + ":" + body;
             String computed = "v0=" + hmacSha256(zoomProperties.getWebhookSecretToken(), message);
-            return computed.equals(signature);
+            return MessageDigest.isEqual(computed.getBytes(StandardCharsets.UTF_8),
+                    signature.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
             log.error("Signature yoxlama xətası: {}", e.getMessage());
             return false;

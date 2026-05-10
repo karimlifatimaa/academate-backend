@@ -1,5 +1,6 @@
 package com.example.academatebackend.service;
 
+import com.example.academatebackend.common.exception.BadRequestException;
 import com.example.academatebackend.common.exception.ResourceNotFoundException;
 import com.example.academatebackend.dto.*;
 import com.example.academatebackend.entity.Lesson;
@@ -72,15 +73,44 @@ public class TeacherService {
     @Transactional
     public List<AvailabilitySlotResponse> setAvailability(UUID teacherId, List<AvailabilitySlotRequest> slots) {
         log.info("Set availability: teacherId={} slotCount={}", teacherId, slots != null ? slots.size() : 0);
+
+        if (slots != null) {
+            for (AvailabilitySlotRequest slot : slots) {
+                if (slot.getDayOfWeek() == null || slot.getStartTime() == null || slot.getEndTime() == null) {
+                    throw new BadRequestException("Hər slot üçün gün, başlama və bitmə saatı tələb olunur");
+                }
+                if (!slot.getStartTime().isBefore(slot.getEndTime())) {
+                    throw new BadRequestException("Başlama saatı bitmə saatından əvvəl olmalıdır: "
+                            + slot.getDayOfWeek() + " " + slot.getStartTime() + "-" + slot.getEndTime());
+                }
+            }
+            // Eyni gündə üst-üstə düşən slotları yoxla
+            slots.stream()
+                    .collect(Collectors.groupingBy(AvailabilitySlotRequest::getDayOfWeek))
+                    .forEach((day, daySlots) -> {
+                        for (int i = 0; i < daySlots.size(); i++) {
+                            for (int j = i + 1; j < daySlots.size(); j++) {
+                                AvailabilitySlotRequest a = daySlots.get(i);
+                                AvailabilitySlotRequest b = daySlots.get(j);
+                                if (a.getStartTime().isBefore(b.getEndTime()) && b.getStartTime().isBefore(a.getEndTime())) {
+                                    throw new BadRequestException(day + " günü üçün slotlar üst-üstə düşür: "
+                                            + a.getStartTime() + "-" + a.getEndTime()
+                                            + " və " + b.getStartTime() + "-" + b.getEndTime());
+                                }
+                            }
+                        }
+                    });
+        }
+
         availabilityRepository.deleteByTeacherId(teacherId);
-        List<TeacherAvailability> entities = slots.stream().map(s ->
-                TeacherAvailability.builder()
+        List<TeacherAvailability> entities = (slots == null ? List.<AvailabilitySlotRequest>of() : slots).stream()
+                .map(s -> TeacherAvailability.builder()
                         .teacherId(teacherId)
                         .dayOfWeek(s.getDayOfWeek())
                         .startTime(s.getStartTime())
                         .endTime(s.getEndTime())
-                        .build()
-        ).collect(Collectors.toList());
+                        .build())
+                .collect(Collectors.toList());
         availabilityRepository.saveAll(entities);
         log.info("Availability saved: teacherId={} slots={}", teacherId, entities.size());
         return entities.stream().map(this::toSlotResponse).collect(Collectors.toList());

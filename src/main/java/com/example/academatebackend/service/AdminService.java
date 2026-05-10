@@ -30,6 +30,7 @@ public class AdminService {
     private final TeacherProfileRepository teacherProfileRepository;
     private final TeacherAvailabilityRepository availabilityRepository;
 
+    @Transactional(readOnly = true)
     public Page<TeacherSummaryResponse> listTeachers(Pageable pageable) {
         return userRepository.findByRole(Role.TEACHER, pageable)
                 .map(user -> toSummary(user, teacherProfileRepository.findById(user.getId()).orElse(null)));
@@ -101,6 +102,7 @@ public class AdminService {
         log.info("User deactivated: userId={} email={}", userId, user.getEmail());
     }
 
+    @Transactional(readOnly = true)
     public Page<UserResponse> listUsers(Role role, Pageable pageable) {
         Page<User> users = role != null
                 ? userRepository.findByRole(role, pageable)
@@ -108,6 +110,7 @@ public class AdminService {
         return users.map(this::toUserResponse);
     }
 
+    @Transactional(readOnly = true)
     public AdminStatsResponse getStats() {
         return AdminStatsResponse.builder()
                 .totalUsers(userRepository.count())

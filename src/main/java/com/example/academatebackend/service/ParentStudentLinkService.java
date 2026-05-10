@@ -100,6 +100,7 @@ public class ParentStudentLinkService {
 
     // ── Parent: list linked children ──────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public List<UserResponse> getChildren(UUID parentId) {
         return parentStudentLinkRepository.findByIdParentId(parentId).stream()
                 .filter(link -> Boolean.TRUE.equals(link.getVerified()))
@@ -111,6 +112,7 @@ public class ParentStudentLinkService {
 
     // ── Student: list linked parents ──────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public List<UserResponse> getParents(UUID studentId) {
         return parentStudentLinkRepository.findByIdStudentId(studentId).stream()
                 .filter(link -> Boolean.TRUE.equals(link.getVerified()))

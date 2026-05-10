@@ -35,10 +35,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 java.util.UUID userId = jwtService.extractUserId(token);
                 UserDetails userDetails = userDetailsService.loadUserById(userId);
 
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                if (!userDetails.isEnabled()) {
+                    log.debug("Blocked disabled account from authenticating: userId={}", userId);
+                } else {
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
             } catch (Exception e) {
                 log.debug("Could not set user authentication: {}", e.getMessage());
             }

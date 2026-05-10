@@ -69,7 +69,7 @@ public class AuthService {
         }
 
         User user = User.builder()
-                .email(isChild ? null : req.getEmail())
+                .email(isChild ? null : normalizeEmail(req.getEmail()))
                 .passwordHash(passwordEncoder.encode(req.getPassword() != null ? req.getPassword() : UUID.randomUUID().toString()))
                 .fullName(req.getFullName())
                 .role(Role.STUDENT)
@@ -139,7 +139,7 @@ public class AuthService {
         checkEmailUniqueness(req.getEmail());
 
         User user = User.builder()
-                .email(req.getEmail())
+                .email(normalizeEmail(req.getEmail()))
                 .passwordHash(passwordEncoder.encode(req.getPassword()))
                 .fullName(req.getFullName())
                 .role(Role.TEACHER)
@@ -189,7 +189,7 @@ public class AuthService {
         checkEmailUniqueness(req.getEmail());
 
         User user = User.builder()
-                .email(req.getEmail())
+                .email(normalizeEmail(req.getEmail()))
                 .passwordHash(passwordEncoder.encode(req.getPassword()))
                 .fullName(req.getFullName())
                 .role(Role.PARENT)
@@ -214,7 +214,9 @@ public class AuthService {
     @Transactional
     public AuthResponse login(LoginRequest req, HttpServletRequest request) {
         log.debug("Login attempt: identifier={}", req.getIdentifier());
-        User user = userRepository.findByEmailOrUsername(req.getIdentifier(), req.getIdentifier())
+        String identifier = req.getIdentifier().contains("@")
+                ? normalizeEmail(req.getIdentifier()) : req.getIdentifier().trim();
+        User user = userRepository.findByEmailOrUsername(identifier, identifier)
                 .orElseThrow(() -> {
                     log.warn("Login failed - user not found: identifier={}", req.getIdentifier());
                     return new UnauthorizedException("Invalid credentials");
@@ -227,7 +229,7 @@ public class AuthService {
 
         try {
             authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(req.getIdentifier(), req.getPassword())
+                    new UsernamePasswordAuthenticationToken(identifier, req.getPassword())
             );
         } catch (BadCredentialsException e) {
             handleFailedLogin(user);
@@ -344,8 +346,12 @@ public class AuthService {
                 .build();
     }
 
+    private String normalizeEmail(String email) {
+        return email != null ? email.trim().toLowerCase() : null;
+    }
+
     private void checkEmailUniqueness(String email) {
-        if (email != null && userRepository.existsByEmail(email)) {
+        if (email != null && userRepository.existsByEmail(normalizeEmail(email))) {
             throw new ConflictException("Email already in use: " + email);
         }
     }

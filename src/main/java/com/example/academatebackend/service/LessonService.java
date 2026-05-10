@@ -9,8 +9,10 @@ import com.example.academatebackend.entity.Lesson;
 import com.example.academatebackend.entity.TeacherAvailability;
 import com.example.academatebackend.entity.User;
 import com.example.academatebackend.enums.LessonStatus;
+import com.example.academatebackend.enums.Role;
 import com.example.academatebackend.repository.LessonRepository;
 import com.example.academatebackend.repository.TeacherAvailabilityRepository;
+import com.example.academatebackend.repository.TeacherProfileRepository;
 import com.example.academatebackend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +25,11 @@ import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -33,6 +39,7 @@ public class LessonService {
     private final LessonRepository lessonRepository;
     private final UserRepository userRepository;
     private final TeacherAvailabilityRepository availabilityRepository;
+    private final TeacherProfileRepository teacherProfileRepository;
     private final ZoomService zoomService;
     private final EmailService emailService;
 
@@ -44,8 +51,23 @@ public class LessonService {
         log.info("Book lesson attempt: studentId={} teacherId={} subject={} scheduledAt={}",
                 studentId, req.getTeacherId(), req.getSubject(), req.getScheduledAt());
 
-        userRepository.findById(req.getTeacherId())
+        if (req.getTeacherId().equals(studentId)) {
+            throw new BadRequestException("Özünüzü müəllim kimi seçə bilməzsiniz");
+        }
+
+        User teacher = userRepository.findById(req.getTeacherId())
                 .orElseThrow(() -> new ResourceNotFoundException("Teacher", req.getTeacherId()));
+
+        if (teacher.getRole() != Role.TEACHER) {
+            throw new BadRequestException("Seçilən istifadəçi müəllim deyil");
+        }
+
+        boolean isVerified = teacherProfileRepository.findById(req.getTeacherId())
+                .map(p -> Boolean.TRUE.equals(p.getIsVerified()))
+                .orElse(false);
+        if (!isVerified) {
+            throw new BadRequestException("Bu müəllim hələ admin tərəfindən təsdiqlənməyib");
+        }
 
         int durationMinutes = req.getDurationMinutes() != null ? req.getDurationMinutes() : 60;
         if (durationMinutes <= 0 || durationMinutes > MAX_LESSON_MINUTES) {
@@ -127,18 +149,29 @@ public class LessonService {
         }
     }
 
+    @Transactional(readOnly = true)
     public Page<LessonResponse> getStudentLessons(UUID studentId, LessonStatus status, Pageable pageable) {
         Page<Lesson> lessons = status != null
                 ? lessonRepository.findByStudentIdAndStatus(studentId, status, pageable)
                 : lessonRepository.findByStudentId(studentId, pageable);
-        return lessons.map(this::toLessonResponse);
+        return mapPageWithUserCache(lessons);
     }
 
+    @Transactional(readOnly = true)
     public Page<LessonResponse> getTeacherLessons(UUID teacherId, LessonStatus status, Pageable pageable) {
         Page<Lesson> lessons = status != null
                 ? lessonRepository.findByTeacherIdAndStatus(teacherId, status, pageable)
                 : lessonRepository.findByTeacherId(teacherId, pageable);
-        return lessons.map(this::toLessonResponse);
+        return mapPageWithUserCache(lessons);
+    }
+
+    private Page<LessonResponse> mapPageWithUserCache(Page<Lesson> lessons) {
+        Set<UUID> userIds = lessons.getContent().stream()
+                .flatMap(l -> Stream.of(l.getTeacherId(), l.getStudentId()))
+                .collect(Collectors.toSet());
+        Map<UUID, User> userCache = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
+        return lessons.map(l -> toLessonResponse(l, userCache));
     }
 
     @Transactional
@@ -236,7 +269,16 @@ public class LessonService {
     private LessonResponse toLessonResponse(Lesson l) {
         User teacher = userRepository.findById(l.getTeacherId()).orElse(null);
         User student = userRepository.findById(l.getStudentId()).orElse(null);
+        return buildLessonResponse(l, teacher, student);
+    }
 
+    private LessonResponse toLessonResponse(Lesson l, Map<UUID, User> userCache) {
+        User teacher = userCache.get(l.getTeacherId());
+        User student = userCache.get(l.getStudentId());
+        return buildLessonResponse(l, teacher, student);
+    }
+
+    private LessonResponse buildLessonResponse(Lesson l, User teacher, User student) {
         return LessonResponse.builder()
                 .id(l.getId())
                 .teacherId(l.getTeacherId())
