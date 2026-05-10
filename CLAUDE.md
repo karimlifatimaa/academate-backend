@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Companion repository
+
+Frontend (Next.js): `/Users/fatimakarimli/academate-frontend`
+
 ## Commands
 
 ```bash
