@@ -43,3 +43,5 @@ out/
 application-dev.yml
 application-prod.yml
 
+### Claude ###
+CLAUDE.md
